@@ -186,7 +186,7 @@ class Graphics {
 		 *
 		 * @param filename - Name of the file to open.
 		 */
-		int loadImageAsync(string filename);
+		void loadImageAsync(string filename);
 
 		/**
 		 * Free a loaded image.
