@@ -172,6 +172,23 @@ class Graphics {
 		int loadImage(string filename);
 		
 		/**
+		 * Load a .png/.jpg/.bmp image (asynchronous).
+		 * \ingroup Graphics
+		 *
+		 * @par Usage example:
+		 * @code
+		 * Graphics.loadImageAsync("app0:/image.jpg")
+		 * while System.getAsyncState() == 0 do
+		 * 
+		 * end
+		 * img = System.getAsyncResult()
+		 * @endcode
+		 *
+		 * @param filename - Name of the file to open.
+		 */
+		int loadImageAsync(string filename);
+
+		/**
 		 * Free a loaded image.
 		 * \ingroup Graphics
 		 *
