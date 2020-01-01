@@ -732,6 +732,17 @@ void luaNetwork_init(lua_State *L) {
 	uint8_t CONNECT_METHOD = SCE_HTTP_METHOD_CONNECT;
 	uint8_t UDP_SOCKET = SCE_NET_IPPROTO_UDP;
 	uint8_t TCP_SOCKET = SCE_NET_IPPROTO_TCP;
+	if (isNet)
+	{
+		curl_easy_cleanup(curl_handle);
+		sceHttpTerm();
+		sceNetCtlTerm();
+		sceNetTerm();
+		if (net_memory != NULL) 
+			free(net_memory);
+		net_memory = NULL;
+		isNet = 0;
+	}
 	VariableRegister(L,UDP_SOCKET);
 	VariableRegister(L,TCP_SOCKET);
 	VariableRegister(L,GET_METHOD);
