@@ -66,4 +66,32 @@ class Font {
 		 */
 		void print(int font, number x, number y, string text, int color);
 			
+		/**
+		 * Get width of the text written in font.
+		 * \ingroup Font
+		 *
+		 * @par Usage example:
+		 * @code
+		 * Font.getTextWidth(fnt, "smile")
+		 * @endcode
+		 *
+		 * @param font - A valid font loaded with Font.load.
+		 * @param text - Text to measure.
+		 */
+		void getTextWidth(int font, string text);
+
+		/**
+		 * Get height of the text written in font.
+		 * \ingroup Font
+		 *
+		 * @par Usage example:
+		 * @code
+		 * Font.getTextHeight(fnt, "smile")
+		 * @endcode
+		 *
+		 * @param font - A valid font loaded with Font.load.
+		 * @param text - Text to measure.
+		 */
+		void getTextHeight(int font, string text);
+
 }

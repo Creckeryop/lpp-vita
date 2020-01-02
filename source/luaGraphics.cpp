@@ -93,7 +93,7 @@ static int imgThread(unsigned int args, void* arg)
 	lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
 	ret->magic = 0xABADBEEF;
 	ret->text = result;
-	char* buffer = (char*)malloc(32 * sizeof(char));
+	char* buffer = (char*)malloc(21 * sizeof(char));
 	sprintf(buffer, "%i", ret);
 	asyncStrRes = (unsigned char*)buffer;
 	asyncResSize = strlen(buffer);
@@ -553,6 +553,44 @@ static int lua_fsize(lua_State *L) {
 	return 0;
 }
 
+static int lua_fwidth(lua_State *L) {
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 2) return luaL_error(L, "wrong number of arguments");
+	#endif
+	ttf* font = (ttf*)(luaL_checkinteger(L, 1));
+	char* text = (char*)(luaL_checkstring(L, 2));
+	#ifndef SKIP_ERROR_HANDLING
+	if (font->magic != 0x4C464E54) return luaL_error(L, "attempt to access wrong memory block type");
+	#endif
+	if (font->f != NULL)
+		lua_pushinteger(L, vita2d_font_text_width(font->f, font->size, text));
+	else if (font->f2 != NULL)
+		lua_pushinteger(L, vita2d_pgf_text_width(font->f2, font->size, text));
+	else
+		lua_pushinteger(L, vita2d_pvf_text_width(font->f3, font->size, text));
+	return 1;
+}
+
+static int lua_fheight(lua_State *L) {
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 2) return luaL_error(L, "wrong number of arguments");
+	#endif
+	ttf* font = (ttf*)(luaL_checkinteger(L, 1));
+	char* text = (char*)(luaL_checkstring(L, 2));
+	#ifndef SKIP_ERROR_HANDLING
+	if (font->magic != 0x4C464E54) return luaL_error(L, "attempt to access wrong memory block type");
+	#endif
+	if (font->f != NULL)
+		lua_pushinteger(L, vita2d_font_text_height(font->f, font->size, text));
+	else if (font->f2 != NULL)
+		lua_pushinteger(L, vita2d_pgf_text_height(font->f2, font->size, text));
+	else
+		lua_pushinteger(L, vita2d_pvf_text_height(font->f3, font->size, text));
+	return 1;
+}
+
 static int lua_unloadFont(lua_State *L) {
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
@@ -653,6 +691,8 @@ static const luaL_Reg Font_functions[] = {
   {"load",            lua_loadFont}, 
   {"print",           lua_fprint}, 
   {"setPixelSizes",   lua_fsize}, 
+  {"getTextWidth",    lua_fwidth}, 
+  {"getTextHeight",   lua_fheight}, 
   {"unload",          lua_unloadFont}, 
   {0, 0}
 };
