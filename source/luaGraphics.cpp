@@ -33,9 +33,16 @@
 #include <vita2d.h>
 #include "include/luaplayer.h"
 #include "include/message_dialog.h"
-
+extern "C"
+{
+	#include "include/piclib.h"
+}
 #define stringify(str) #str
 #define VariableRegister(lua, value) do { lua_pushinteger(lua, value); lua_setglobal (lua, stringify(value)); } while(0)
+
+#define IMGLOAD_SIMPLE 0
+#define IMGLOAD_PART 1
+#define IMGLOAD_END  2
 
 vita2d_pgf* debug_font;
 struct ttf{
@@ -58,6 +65,8 @@ struct rescaler{
 static bool isRescaling = false;
 static rescaler scaler;
 static char asyncPath[512];
+static int asyncParams[4];
+static volatile uint8_t asyncMode = IMGLOAD_END;
 
 #ifdef PARANOID
 static bool draw_state = false;
@@ -65,30 +74,45 @@ static bool draw_state = false;
 
 static int imgThread(unsigned int args, void* arg)
 {
-	char* text = asyncPath;
-	SceUID file = sceIoOpen(text, SCE_O_RDONLY, 0777);
-	uint16_t magic;
-	sceIoRead(file, &magic, 2);
-	sceIoClose(file);
 	vita2d_texture* result;
-	if (magic == 0x4D42)
-	{
-		result = vita2d_load_BMP_file(text);
-	}
-	else if (magic == 0xD8FF)
-	{
-		result = vita2d_load_JPEG_file(text);
-	}
-	else if (magic == 0x5089)
-	{
-		result = vita2d_load_PNG_file(text);
-	}
-	else 
-	{
-		async_task_num--;
-		asyncResult = 1;
-		sceKernelExitDeleteThread(0);
-		return 0;
+	SceUID fd;
+	char* text = asyncPath;
+	switch (asyncMode){
+		case IMGLOAD_SIMPLE:
+			fd = sceIoOpen(text, SCE_O_RDONLY, 0777);
+			uint16_t magic;
+			sceIoRead(fd, &magic, 2);
+			sceIoClose(fd);
+			if (magic == 0x4D42)
+			{
+				result = vita2d_load_BMP_file(text);
+			}
+			else if (magic == 0xD8FF)
+			{
+				result = vita2d_load_JPEG_file(text);
+			}
+			else if (magic == 0x5089)
+			{
+				result = vita2d_load_PNG_file(text);
+			}
+			else 
+			{
+				async_task_num--;
+				asyncMode = IMGLOAD_END;
+				asyncResult = 1;
+				sceKernelExitDeleteThread(0);
+				return 0;
+			}
+			break;
+		case IMGLOAD_PART:
+			if (!(result = load_PIC_file(text,asyncParams[0],asyncParams[1],asyncParams[2],asyncParams[3]))){
+				async_task_num--;
+				asyncMode = IMGLOAD_END;
+				asyncResult = 1;
+				sceKernelExitDeleteThread(0);
+				return 0;
+			}
+			break;
 	}
 	lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
 	ret->magic = 0xABADBEEF;
@@ -98,6 +122,7 @@ static int imgThread(unsigned int args, void* arg)
 	asyncStrRes = (unsigned char*)buffer;
 	asyncResSize = strlen(buffer);
 	async_task_num--;
+	asyncMode = IMGLOAD_END;
 	asyncResult = 1;
 	sceKernelExitDeleteThread(0);
 	return 0;
@@ -283,6 +308,31 @@ static int lua_loadimgasync(lua_State *L){
 	char* text = (char*)(luaL_checkstring(L, 1));
 	sprintf(asyncPath, text);
 	async_task_num++;
+	asyncMode = IMGLOAD_SIMPLE;
+	SceUID thd = sceKernelCreateThread("Image loader Thread", &imgThread, 0x10000100, 0x100000, 0, 0, NULL);
+	if (thd < 0)
+	{
+		asyncResult = -1;
+		return 0;
+	}
+	asyncResult = 0;
+	sceKernelStartThread(thd, 0, NULL);
+	return 0;
+}
+
+static int lua_loadimgpartasync(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 5) return luaL_error(L, "wrong number of arguments");
+	#endif
+	char* text = (char*)(luaL_checkstring(L, 1));
+	sprintf(asyncPath, text);
+	asyncParams[0] = luaL_checknumber(L, 2);
+	asyncParams[1] = luaL_checknumber(L, 3);
+	asyncParams[2] = luaL_checknumber(L, 4);
+	asyncParams[3] = luaL_checknumber(L, 5);
+	async_task_num++;
+	asyncMode = IMGLOAD_PART;
 	SceUID thd = sceKernelCreateThread("Image loader Thread", &imgThread, 0x10000100, 0x100000, 0, 0, NULL);
 	if (thd < 0)
 	{
@@ -309,6 +359,27 @@ static int lua_loadimg(lua_State *L){
 	else if (magic == 0xD8FF) result = vita2d_load_JPEG_file(text);
 	else if (magic == 0x5089) result = vita2d_load_PNG_file(text);
 	else return luaL_error(L, "Error loading image (invalid magic).");
+	#ifndef SKIP_ERROR_HANDLING
+	if (result == NULL) return luaL_error(L, "Error loading image.");
+	#endif
+	lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
+	ret->magic = 0xABADBEEF;
+	ret->text = result;
+	lua_pushinteger(L, (uint32_t)(ret));
+	return 1;
+}
+
+static int lua_loadimgpart(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 5) return luaL_error(L, "wrong number of arguments");
+	#endif
+	char* text = (char*)(luaL_checkstring(L, 1));
+	int x = luaL_checkinteger(L, 2);
+	int y = luaL_checkinteger(L, 3);
+	int width = luaL_checkinteger(L, 4);
+	int height = luaL_checkinteger(L, 5);
+	vita2d_texture* result = load_PIC_file(text,x,y,width,height);
 	#ifndef SKIP_ERROR_HANDLING
 	if (result == NULL) return luaL_error(L, "Error loading image.");
 	#endif
@@ -670,7 +741,9 @@ static const luaL_Reg Graphics_functions[] = {
   {"fillEmptyRect",       lua_emptyrect},
   {"fillCircle",          lua_circle},
   {"loadImage",           lua_loadimg},
+  {"loadPartImage",		  lua_loadimgpart},
   {"loadImageAsync",      lua_loadimgasync},
+  {"loadPartImageAsync",  lua_loadimgpartasync},
   {"drawImage",           lua_drawimg},
   {"drawRotateImage",     lua_drawimg_rotate},
   {"drawScaleImage",      lua_drawimg_scale},
