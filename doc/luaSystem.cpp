@@ -185,6 +185,21 @@ class System{
 		bool doesDirExist(string dirname);
 		
 		/**
+		 * Get width and height of a Picture.
+		 * \ingroup System
+		 *
+		 * @par Usage example:
+		 * @code
+		 * width, height = System.getPictureResolution("app0:/image.jpg")
+		 * @endcode
+		 *
+		 * @param pic_path - path to picture.
+		 *
+		 * @return true if exists, false otherwise.
+		 */
+		int[] getPictureResolution(string pic_path)
+
+		/**
 		 * Rename or move a file.
 		 * \ingroup System
 		 *

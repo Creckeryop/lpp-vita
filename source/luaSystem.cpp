@@ -33,6 +33,7 @@
 #include <unistd.h>
 extern "C"{
 	#include <vitasdk.h>
+	#include "include/piclib.h"
 }
 #include "include/Archives.h"
 #include "include/luaplayer.h"
@@ -597,6 +598,19 @@ static int lua_getdate(lua_State *L){
 	return 4;
 }
 
+static int lua_getpicres(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	const char *filename = luaL_checkstring(L, 1);
+	int width, height;
+	get_PIC_resolution(filename,&width,&height);
+	lua_pushinteger(L,width);
+	lua_pushinteger(L,height);
+	return 2;
+}
+
 static int lua_nickname(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
@@ -1001,6 +1015,7 @@ static const luaL_Reg System_functions[] = {
   {"sizeFile",                  lua_sizefile},  
   {"doesFileExist",             lua_checkexist},
   {"doesDirExist",              lua_checkexist2},
+  {"getPictureResolution",      lua_getpicres},
   {"exit",                      lua_exit},
   {"rename",                    lua_rename},
   {"deleteFile",                lua_removef},
