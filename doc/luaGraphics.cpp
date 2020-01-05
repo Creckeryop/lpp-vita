@@ -189,6 +189,46 @@ class Graphics {
 		void loadImageAsync(string filename);
 
 		/**
+		 * Load a part of .png/.jpg/.bmp image.
+		 * \ingroup Graphics
+		 *
+		 * @par Usage example:
+		 * @code
+		 * img = Graphics.loadImage("app0:/image.jpg",0,0,200,200)
+		 * @endcode
+		 *
+		 * @param filename - Name of the file to open.
+		 * @param x - start x of part.
+		 * @param y - start y of part.
+		 * @param width - width of part.
+		 * @param height - height of part.
+		 *
+		 * @return A valid image id.
+		 */
+		int loadPartImage(string filename, int x, int y, int width, int height);
+		
+		/**
+		 * Load a part of .png/.jpg/.bmp image (asynchronous).
+		 * \ingroup Graphics
+		 *
+		 * @par Usage example:
+		 * @code
+		 * Graphics.loadImageAsync("app0:/image.jpg", 0, 0, 100, 100)
+		 * while System.getAsyncState() == 0 do
+		 * 
+		 * end
+		 * img = System.getAsyncResult()
+		 * @endcode
+		 *
+		 * @param filename - Name of the file to open.
+		 * @param x - start x of part.
+		 * @param y - start y of part.
+		 * @param width - width of part.
+		 * @param height - height of part.
+		 */
+		int loadPartImageAsync(string filename, int x, int y, int width, int height);
+
+		/**
 		 * Free a loaded image.
 		 * \ingroup Graphics
 		 *
