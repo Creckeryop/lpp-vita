@@ -188,6 +188,7 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	unsigned int magic = *(unsigned int *)buffer;
 	if (magic != 0xE0FFD8FF && magic != 0xE1FFD8FF)
 	{
+		free(buffer);
 		return NULL;
 	}
 	struct jpeg_decompress_struct jinfo;
@@ -199,6 +200,7 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	jpeg_read_header(&jinfo, 1);
 	if (x > jinfo.image_width || y > jinfo.image_height || x + width > jinfo.image_width || y + height > jinfo.image_height)
 	{
+		free(buffer);
 		return NULL;
 	}
 
@@ -224,6 +226,7 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	}
 	else
 	{
+		free(buffer);
 		return NULL;
 	}
 
@@ -236,7 +239,8 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 
 	vita2d_texture *texture = vita2d_create_empty_texture_format(width, height, jinfo.out_color_space == JCS_GRAYSCALE ? SCE_GXM_TEXTURE_FORMAT_U8_R111 : SCE_GXM_TEXTURE_FORMAT_U8U8U8_BGR);
 	if (!texture)
-	{
+	{	
+		free(buffer);
 		jpeg_abort_decompress(&jinfo);
 		return NULL;
 	}
@@ -258,6 +262,7 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	}
 	jpeg_skip_scanlines(&jinfo, jinfo.output_height - y - height);
 	free(*row_pointer);
+	free(buffer);
 	jpeg_finish_decompress(&jinfo);
 	jpeg_destroy_decompress(&jinfo);
 	return texture;
@@ -447,6 +452,7 @@ void get_JPEG_resolution(const char *filename, int *dest_width, int *dest_height
 	*dest_width = jinfo.image_width;
 	*dest_height = jinfo.image_height;
 	jpeg_destroy_decompress(&jinfo);
+	free(buffer);
 }
 void get_BMP_resolution(const char *filename, int *dest_width, int *dest_height)
 {
