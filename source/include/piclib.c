@@ -66,34 +66,14 @@ vita2d_texture *load_PNG_file_part(const char *filename, int x, int y, int width
 	unsigned int width_info, height_info;
 	int bit_depth, color_type;
 
-	png_get_IHDR(png_ptr, info_ptr, &width_info, &height_info, &bit_depth, &color_type, NULL, NULL, NULL);
-	if (x > width_info || y > height_info || x + width > width_info || y + height > height_info)
-	{
-		return NULL;
-	}
-	if ((color_type == PNG_COLOR_TYPE_PALETTE && bit_depth <= 8) || (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8) || png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS) || (bit_depth == 16))
-	{
-		png_set_expand(png_ptr);
-	}
+	png_get_IHDR(png_ptr, info_ptr, &width_info, &height_info, &bit_depth,
+				 &color_type, NULL, NULL, NULL);
 
 	if (bit_depth == 16)
-		png_set_scale_16(png_ptr);
-	if (bit_depth == 8 && color_type == PNG_COLOR_TYPE_RGB)
-		png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
+		png_set_strip_16(png_ptr);
 
-	switch (color_type)
-	{
-	case PNG_COLOR_TYPE_RGB:
-		break;
-	case PNG_COLOR_TYPE_GRAY:
-	case PNG_COLOR_TYPE_GRAY_ALPHA:
-		png_set_gray_to_rgb(png_ptr);
-		break;
-	case PNG_COLOR_TYPE_PALETTE:
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
 		png_set_palette_to_rgb(png_ptr);
-		png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
-		break;
-	}
 
 	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
 		png_set_expand_gray_1_2_4_to_8(png_ptr);
@@ -101,8 +81,14 @@ vita2d_texture *load_PNG_file_part(const char *filename, int x, int y, int width
 	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
 		png_set_tRNS_to_alpha(png_ptr);
 
-	if (bit_depth < 8)
-		png_set_packing(png_ptr);
+	if (color_type == PNG_COLOR_TYPE_RGB ||
+		color_type == PNG_COLOR_TYPE_GRAY ||
+		color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
+
+	if (color_type == PNG_COLOR_TYPE_GRAY ||
+		color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+		png_set_gray_to_rgb(png_ptr);
 
 	png_read_update_info(png_ptr, info_ptr);
 	float scaleWidth = (float)width / MAX_TEXTURE_SIZE;
@@ -239,7 +225,7 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 
 	vita2d_texture *texture = vita2d_create_empty_texture_format(width, height, jinfo.out_color_space == JCS_GRAYSCALE ? SCE_GXM_TEXTURE_FORMAT_U8_R111 : SCE_GXM_TEXTURE_FORMAT_U8U8U8_BGR);
 	if (!texture)
-	{	
+	{
 		free(buffer);
 		jpeg_abort_decompress(&jinfo);
 		return NULL;
