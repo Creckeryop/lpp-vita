@@ -154,6 +154,78 @@ vita2d_texture *load_PNG_file_part(const char *filename, int x, int y, int width
 	return texture;
 }
 
+typedef struct
+{
+	struct jpeg_source_mgr pub;
+
+	SceUID fd;
+	JOCTET *buffer;
+	boolean start_of_file;
+} sce_io_src_mgr;
+typedef sce_io_src_mgr *sce_io_src_ptr;
+
+static void init_source(j_decompress_ptr cinfo)
+{
+	sce_io_src_ptr src = (sce_io_src_ptr)cinfo->src;
+	src->start_of_file = TRUE;
+}
+static boolean fill_input_buffer(j_decompress_ptr cinfo)
+{
+	sce_io_src_ptr src = (sce_io_src_ptr)cinfo->src;
+
+	size_t nbytes;
+	src->start_of_file = FALSE;
+	nbytes = (size_t)sceIoRead(src->fd, src->buffer, 4096);
+	if (nbytes <= 0)
+	{
+		src->buffer[0] = (JOCTET)0xFF;
+		src->buffer[1] = (JOCTET)JPEG_EOI;
+		nbytes = 2;
+	}
+	src->pub.next_input_byte = src->buffer;
+	src->pub.bytes_in_buffer = nbytes;
+	return TRUE;
+}
+
+static void skip_input_data(j_decompress_ptr cinfo, long num_bytes)
+{
+	struct jpeg_source_mgr *src = cinfo->src;
+	if (num_bytes > 0)
+	{
+		while (num_bytes > (long)src->bytes_in_buffer)
+		{
+			num_bytes -= (long)src->bytes_in_buffer;
+			(void)(*src->fill_input_buffer)(cinfo);
+		}
+		src->next_input_byte += (size_t)num_bytes;
+		src->bytes_in_buffer -= (size_t)num_bytes;
+	}
+}
+static void term_source(j_decompress_ptr cinfo)
+{
+}
+static void jpeg_vita_src(j_decompress_ptr cinfo, SceUID infile)
+{
+	sce_io_src_ptr src;
+	if (cinfo->src == NULL)
+	{
+		cinfo->src = (struct jpeg_source_mgr *)(*cinfo->mem->alloc_small)((j_common_ptr)cinfo, JPOOL_PERMANENT,
+																		  (size_t)sizeof(sce_io_src_mgr));
+		src = (sce_io_src_ptr)cinfo->src;
+		src->buffer = (JOCTET *)(*cinfo->mem->alloc_small)((j_common_ptr)cinfo, JPOOL_PERMANENT,
+														   4096 * ((size_t)sizeof(JOCTET)));
+	}
+
+	src = (sce_io_src_ptr)cinfo->src;
+	src->pub.init_source = init_source;
+	src->pub.fill_input_buffer = fill_input_buffer;
+	src->pub.skip_input_data = skip_input_data;
+	src->pub.resync_to_restart = jpeg_resync_to_restart; /* use default method */
+	src->pub.term_source = term_source;
+	src->fd = infile;
+	src->pub.bytes_in_buffer = 0;	/* forces fill_input_buffer on first read */
+	src->pub.next_input_byte = NULL; /* until buffer loaded */
+}
 vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int width, int height)
 {
 	if (x < 0 || y < 0 || width < 0 || height < 0)
@@ -165,28 +237,17 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	{
 		return NULL;
 	}
-	uint32_t size = sceIoLseek(fd, 0, SEEK_END);
-	sceIoLseek(fd, 0, SEEK_SET);
-	void *buffer = malloc(sizeof(unsigned int) * size);
-	sceIoRead(fd, buffer, size);
-	sceIoClose(fd);
-
-	unsigned int magic = *(unsigned int *)buffer;
-	if (magic != 0xE0FFD8FF && magic != 0xE1FFD8FF)
-	{
-		free(buffer);
-		return NULL;
-	}
 	struct jpeg_decompress_struct jinfo;
 	struct jpeg_error_mgr jerr;
 	jinfo.err = jpeg_std_error(&jerr);
 
 	jpeg_create_decompress(&jinfo);
-	jpeg_mem_src(&jinfo, buffer, size);
+	jpeg_vita_src(&jinfo, fd);
 	jpeg_read_header(&jinfo, 1);
 	if (x > jinfo.image_width || y > jinfo.image_height || x + width > jinfo.image_width || y + height > jinfo.image_height)
 	{
-		free(buffer);
+		sceIoClose(fd);
+		jpeg_destroy_decompress(&jinfo);
 		return NULL;
 	}
 
@@ -212,7 +273,8 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	}
 	else
 	{
-		free(buffer);
+		sceIoClose(fd);
+		jpeg_destroy_decompress(&jinfo);
 		return NULL;
 	}
 
@@ -226,8 +288,8 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 	vita2d_texture *texture = vita2d_create_empty_texture_format(width, height, jinfo.out_color_space == JCS_GRAYSCALE ? SCE_GXM_TEXTURE_FORMAT_U8_R111 : SCE_GXM_TEXTURE_FORMAT_U8U8U8_BGR);
 	if (!texture)
 	{
-		free(buffer);
-		jpeg_abort_decompress(&jinfo);
+		jpeg_destroy_decompress(&jinfo);
+		sceIoClose(fd);
 		return NULL;
 	}
 
@@ -247,10 +309,10 @@ vita2d_texture *load_JPEG_file_part(const char *filename, int x, int y, int widt
 		pointer += skip;
 	}
 	jpeg_skip_scanlines(&jinfo, jinfo.output_height - y - height);
-	free(*row_pointer);
-	free(buffer);
 	jpeg_finish_decompress(&jinfo);
 	jpeg_destroy_decompress(&jinfo);
+	free(*row_pointer);
+	sceIoClose(fd);
 	return texture;
 }
 
@@ -417,28 +479,17 @@ void get_JPEG_resolution(const char *filename, int *dest_width, int *dest_height
 	{
 		return;
 	}
-	uint32_t size = sceIoLseek(fd, 0, SEEK_END);
-	sceIoLseek(fd, 0, SEEK_SET);
-	void *buffer = malloc(sizeof(unsigned int) * size);
-	sceIoRead(fd, buffer, size);
-	sceIoClose(fd);
-
-	unsigned int magic = *(unsigned int *)buffer;
-	if (magic != 0xE0FFD8FF && magic != 0xE1FFD8FF)
-	{
-		return;
-	}
 	struct jpeg_decompress_struct jinfo;
 	struct jpeg_error_mgr jerr;
 	jinfo.err = jpeg_std_error(&jerr);
 
 	jpeg_create_decompress(&jinfo);
-	jpeg_mem_src(&jinfo, buffer, size);
+	jpeg_vita_src(&jinfo, fd);
 	jpeg_read_header(&jinfo, 1);
 	*dest_width = jinfo.image_width;
 	*dest_height = jinfo.image_height;
 	jpeg_destroy_decompress(&jinfo);
-	free(buffer);
+	sceIoClose(fd);
 }
 void get_BMP_resolution(const char *filename, int *dest_width, int *dest_height)
 {
