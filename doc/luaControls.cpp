@@ -178,7 +178,7 @@ class Controls {
 		 *
 		 * @par Usage example:
 		 * @code
-		 * Controls.lockHomeButton()
+		 * Controls.unlockHomeButton()
 		 * @endcode
 		 */
 		void unlockHomeButton(void);
