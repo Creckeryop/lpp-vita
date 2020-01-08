@@ -43,18 +43,21 @@ vita2d_texture *load_PNG_file_part(const char *filename, int x, int y, int width
 	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (png_ptr == NULL)
 	{
+		sceIoClose(fd);
 		return NULL;
 	}
 
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr == NULL)
 	{
+		sceIoClose(fd);
 		png_destroy_read_struct(&png_ptr, (png_infopp)0, (png_infopp)0);
 		return NULL;
 	}
 
 	if (setjmp(png_jmpbuf(png_ptr)))
 	{
+		sceIoClose(fd);
 		png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)0);
 		return NULL;
 	}
@@ -113,12 +116,14 @@ vita2d_texture *load_PNG_file_part(const char *filename, int x, int y, int width
 	}
 	else
 	{
+		sceIoClose(fd);
 		return NULL;
 	}
 	vita2d_texture *texture = vita2d_create_empty_texture(width / scale, height / scale);
 
 	if (!texture)
 	{
+		sceIoClose(fd);
 		png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)0);
 		return NULL;
 	}
@@ -445,18 +450,21 @@ void get_PNG_resolution(const char *filename, int *dest_width, int *dest_height)
 	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (png_ptr == NULL)
 	{
+		sceIoClose(fd);
 		return;
 	}
 
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if (info_ptr == NULL)
 	{
+		sceIoClose(fd);
 		png_destroy_read_struct(&png_ptr, (png_infopp)0, (png_infopp)0);
 		return;
 	}
 
 	if (setjmp(png_jmpbuf(png_ptr)))
 	{
+		sceIoClose(fd);
 		png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)0);
 		return;
 	}
@@ -471,6 +479,7 @@ void get_PNG_resolution(const char *filename, int *dest_width, int *dest_height)
 	*dest_width = dw;
 	*dest_height = dh;
 	png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)0);
+	sceIoClose(fd);
 }
 void get_JPEG_resolution(const char *filename, int *dest_width, int *dest_height)
 {
