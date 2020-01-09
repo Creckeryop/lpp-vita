@@ -140,6 +140,36 @@ class Graphics {
 		void fillCircle(number x1, number y1, number rad, int color);
 		
 		/**
+		 * Draw a polygon.
+		 * \ingroup Graphics
+		 *
+		 * @par Usage example:
+		 * @code
+		 * Graphics.drawPolygon(2, 2, 2, 100, 50, 50, Color.new(255,0,0,255))
+		 * @endcode
+		 *
+		 * @param xN - X coordinate of the polygon point in pixels.
+		 * @param yN - Y coordinate of the polygon point in pixels.
+		 * @param color - A valid color (See ::Color).
+		 */
+		void drawPolygon(number x1, number y1, number x2, number y2, number x3, number y3, ..., int color);
+		
+		/**
+		 * Draw a filled a polygon.
+		 * \ingroup Graphics
+		 *
+		 * @par Usage example:
+		 * @code
+		 * Graphics.fillPolygon(2, 2, 2, 100, 50, 50, Color.new(255,0,0,255))
+		 * @endcode
+		 *
+		 * @param xN - X coordinate of the polygon point in pixels.
+		 * @param yN - Y coordinate of the polygon point in pixels.
+		 * @param color - A valid color (See ::Color).
+		 */
+		void fillPolygon(number x1, number y1, number x2, number y2, number x3, number y3, ..., int color);
+
+		/**
 		 * Create an empty image.
 		 * \ingroup Graphics
 		 *
