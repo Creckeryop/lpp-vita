@@ -262,6 +262,50 @@ static int lua_circle(lua_State *L){
 	return 0;
 }
 
+static int lua_emptypolygon(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc % 2 != 1 || argc < 7) return luaL_error(L, "wrong number of arguments.");
+	#endif
+	#ifdef PARANOID
+	if (!draw_state) return luaL_error(L, "drawEmptyPolygon can't be called outside a blending phase.");
+	#endif
+	int clr = luaL_checkinteger(L, argc);
+	unsigned int color = RGBA8((clr) & 0xFF, (clr >> 8) & 0xFF, (clr >> 16) & 0xFF, (clr >> 24) & 0xFF);
+	for (int i = 1; i < argc - 3; i+=2)
+	{
+		vita2d_draw_line(luaL_checknumber(L,i), luaL_checknumber(L,i + 1), luaL_checknumber(L,i + 2), luaL_checknumber(L,i + 3), color);
+	}
+	vita2d_draw_line(luaL_checknumber(L,1), luaL_checknumber(L,2), luaL_checknumber(L,argc-2), luaL_checknumber(L,argc-1), color);
+	return 0;
+}
+
+static int lua_polygon(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc % 2 != 1 || argc < 7) return luaL_error(L, "wrong number of arguments.");
+	#endif
+	#ifdef PARANOID
+	if (!draw_state) return luaL_error(L, "drawEmptyPolygon can't be called outside a blending phase.");
+	#endif
+	size_t n_vertices = (argc + 1) / 2;
+	vita2d_color_vertex* vertices = (vita2d_color_vertex*)vita2d_pool_memalign(
+		n_vertices * sizeof(vita2d_color_vertex),
+		sizeof(vita2d_color_vertex));
+	int clr = luaL_checkinteger(L, argc);
+	unsigned int color = RGBA8((clr) & 0xFF, (clr >> 8) & 0xFF, (clr >> 16) & 0xFF, (clr >> 24) & 0xFF);
+	for (int i = 0, j = 1; i < n_vertices - 1; ++i, j+=2)
+	{
+		vertices[i].x = luaL_checknumber(L, j);
+		vertices[i].y = luaL_checknumber(L, j + 1);
+		vertices[i].color = color;
+		vertices[i].z = 0.5f;
+	}
+	vertices[n_vertices - 1] = vertices[0];
+	vita2d_draw_array(SCE_GXM_PRIMITIVE_TRIANGLE_FAN, vertices, n_vertices);
+	return 0;
+}
+
 static int lua_init(lua_State *L) {
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
@@ -737,9 +781,11 @@ static const luaL_Reg Graphics_functions[] = {
   {"debugPrint",          lua_print},
   {"drawPixel",           lua_pixel},
   {"drawLine",            lua_line},
+  {"drawPolygon",    	  lua_emptypolygon},
   {"fillRect",            lua_rect},
   {"fillEmptyRect",       lua_emptyrect},
   {"fillCircle",          lua_circle},
+  {"fillPolygon",    	  lua_polygon},
   {"loadImage",           lua_loadimg},
   {"loadPartImage",		  lua_loadimgpart},
   {"loadImageAsync",      lua_loadimgasync},
