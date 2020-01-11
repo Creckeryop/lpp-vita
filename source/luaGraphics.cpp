@@ -139,10 +139,10 @@ static int lua_print(lua_State *L){
 	int x = luaL_checkinteger(L, 1);
 	int y = luaL_checkinteger(L, 2);
 	char* text = (char*)luaL_checkstring(L, 3);
-	int color = luaL_checkinteger(L, 4);
+	int color = luaL_checkinteger(L, 4) & 0xFFFFFFFF;
 	float scale = 1.0;
 	if (argc == 5) scale = luaL_checknumber(L, 5);
-	vita2d_pgf_draw_text(debug_font, x, y + 17.402 * scale, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF), scale, text);
+	vita2d_pgf_draw_text(debug_font, x, y + 17.402 * scale, color, scale, text);
 	return 0;
 }
 
@@ -156,8 +156,8 @@ static int lua_pixel(lua_State *L){
 	#endif
 	float x = luaL_checknumber(L, 1);
 	float y = luaL_checknumber(L, 2);
-	uint32_t color = luaL_checkinteger(L, 3);
-	if (argc == 3) vita2d_draw_rectangle(x, y, 1, 1, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
+	uint32_t color = luaL_checkinteger(L, 3) & 0xFFFFFFFF;
+	if (argc == 3) vita2d_draw_rectangle(x, y, 1, 1, color);
 	else{
 		lpp_texture* text = (lpp_texture*)(luaL_checkinteger(L, 4));
 		#ifndef SKIP_ERROR_HANDLING
@@ -167,7 +167,7 @@ static int lua_pixel(lua_State *L){
 		int inty = y;
 		uint32_t* data = (uint32_t*)vita2d_texture_get_datap(text->text);
 		uint32_t pitch = vita2d_texture_get_stride(text->text)>>2;
-		data[intx+inty*pitch] = color;
+		data[intx + inty * pitch] = color;
 	}
 	return 0;
 }
@@ -184,7 +184,7 @@ static int lua_rect(lua_State *L){
 	float x2 = luaL_checknumber(L, 2);
 	float y1 = luaL_checknumber(L, 3);
 	float y2 = luaL_checknumber(L, 4);
-	int color = luaL_checkinteger(L,5);
+	int color = luaL_checkinteger(L,5) & 0xFFFFFFFF;
 	if (x2 < x1){
 		int tmp = x2;
 		x2 = x1;
@@ -195,7 +195,7 @@ static int lua_rect(lua_State *L){
 		y2 = y1;
 		y1 = tmp;
 	}
-	vita2d_draw_rectangle(x1, y1, x2-x1, y2-y1, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
+	vita2d_draw_rectangle(x1, y1, x2-x1, y2-y1, color);
 	return 0;
 }
 
@@ -211,7 +211,7 @@ static int lua_emptyrect(lua_State *L){
 	float x2 = luaL_checknumber(L, 2);
 	float y1 = luaL_checknumber(L, 3);
 	float y2 = luaL_checknumber(L, 4);
-	int color = luaL_checkinteger(L,5);
+	int color = luaL_checkinteger(L,5) & 0xFFFFFFFF;
 	if (x2 < x1){
 		int tmp = x2;
 		x2 = x1;
@@ -222,10 +222,10 @@ static int lua_emptyrect(lua_State *L){
 		y2 = y1;
 		y1 = tmp;
 	}
-	vita2d_draw_line(x1, y1, x2, y1, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
-	vita2d_draw_line(x1, y2, x2, y2, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
-	vita2d_draw_line(x1, y1, x1, y2, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
-	vita2d_draw_line(x2, y1, x2, y2, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
+	vita2d_draw_line(x1, y1, x2, y1, color);
+	vita2d_draw_line(x1, y2, x2, y2, color);
+	vita2d_draw_line(x1, y1, x1, y2, color);
+	vita2d_draw_line(x2, y1, x2, y2, color);
 	return 0;
 }
 
@@ -242,7 +242,7 @@ static int lua_line(lua_State *L){
 	float y1 = luaL_checknumber(L, 3);
 	float y2 = luaL_checknumber(L, 4);
 	int color = luaL_checkinteger(L,5);
-	vita2d_draw_line(x1, y1, x2, y2, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
+	vita2d_draw_line(x1, y1, x2, y2, color & 0xFFFFFFFF);
 	return 0;
 }
 
@@ -258,7 +258,7 @@ static int lua_circle(lua_State *L){
 	float y = luaL_checknumber(L, 2);
 	float radius = luaL_checknumber(L, 3);
 	int color = luaL_checkinteger(L,4);
-	vita2d_draw_fill_circle(x, y, radius, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
+	vita2d_draw_fill_circle(x, y, radius, color & 0xFFFFFFFF);
 	return 0;
 }
 
@@ -270,8 +270,7 @@ static int lua_emptypolygon(lua_State *L){
 	#ifdef PARANOID
 	if (!draw_state) return luaL_error(L, "drawEmptyPolygon can't be called outside a blending phase.");
 	#endif
-	int clr = luaL_checkinteger(L, argc);
-	unsigned int color = RGBA8((clr) & 0xFF, (clr >> 8) & 0xFF, (clr >> 16) & 0xFF, (clr >> 24) & 0xFF);
+	unsigned int color =  luaL_checkinteger(L, argc) & 0xFFFFFFFF;
 	for (int i = 1; i < argc - 3; i+=2)
 	{
 		vita2d_draw_line(luaL_checknumber(L,i), luaL_checknumber(L,i + 1), luaL_checknumber(L,i + 2), luaL_checknumber(L,i + 3), color);
@@ -292,8 +291,7 @@ static int lua_polygon(lua_State *L){
 	vita2d_color_vertex* vertices = (vita2d_color_vertex*)vita2d_pool_memalign(
 		n_vertices * sizeof(vita2d_color_vertex),
 		sizeof(vita2d_color_vertex));
-	int clr = luaL_checkinteger(L, argc);
-	unsigned int color = RGBA8((clr) & 0xFF, (clr >> 8) & 0xFF, (clr >> 16) & 0xFF, (clr >> 24) & 0xFF);
+	unsigned int color =  luaL_checkinteger(L, argc) & 0xFFFFFFFF;
 	for (int i = 0, j = 1; i < n_vertices - 1; ++i, j+=2)
 	{
 		vertices[i].x = luaL_checknumber(L, j);
@@ -734,13 +732,13 @@ static int lua_fprint(lua_State *L) {
 	float x = luaL_checknumber(L, 2);
 	float y = luaL_checknumber(L, 3);
 	char* text = (char*)(luaL_checkstring(L, 4));
-	uint32_t color = luaL_checkinteger(L,5);
+	uint32_t color = luaL_checkinteger(L,5) & 0xFFFFFFFF;
 	#ifndef SKIP_ERROR_HANDLING
 	if (font->magic != 0x4C464E54) return luaL_error(L, "attempt to access wrong memory block type");
 	#endif
-	if (font->f != NULL) vita2d_font_draw_text(font->f, x, y + font->size, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF), font->size, text);
-	else if (font->f2 != NULL) vita2d_pgf_draw_text(font->f2, x, y + 17.402 * font->scale, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF), font->scale, text);
-	else vita2d_pvf_draw_text(font->f3, x, y + 17.402 * font->scale, RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF), font->scale, text);
+	if (font->f != NULL) vita2d_font_draw_text(font->f, x, y + font->size, color, font->size, text);
+	else if (font->f2 != NULL) vita2d_pgf_draw_text(font->f2, x, y + 17.402 * font->scale, color, font->scale, text);
+	else vita2d_pvf_draw_text(font->f3, x, y + 17.402 * font->scale, color, font->scale, text);
 	return 0;
 }
 

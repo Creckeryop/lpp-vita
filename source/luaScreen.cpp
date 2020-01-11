@@ -49,7 +49,7 @@ static int lua_clear(lua_State *L){
 	if (argc == 1){
 		int color = luaL_checkinteger(L,1);
 		if (color != clr_color){
-			vita2d_set_clear_color(RGBA8((color) & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF, (color >> 24) & 0xFF));
+			vita2d_set_clear_color(color & 0xFFFFFFFF);
 			clr_color = color;
 		}
 	}
@@ -89,7 +89,7 @@ static int lua_color(lua_State *L) {
 	int a = 255;
 	if (argc==4) a = luaL_checkinteger(L, 4);
 	int color = r | (g << 8) | (b << 16) | (a << 24);
-	lua_pushinteger(L,color);
+	lua_pushinteger(L, color);
 	return 1;
 }
 
