@@ -679,9 +679,9 @@ static int lua_fwidth(lua_State *L) {
 	if (font->f != NULL)
 		lua_pushinteger(L, vita2d_font_text_width(font->f, font->size, text));
 	else if (font->f2 != NULL)
-		lua_pushinteger(L, vita2d_pgf_text_width(font->f2, font->size, text));
+		lua_pushinteger(L, vita2d_pgf_text_width(font->f2, font->scale, text));
 	else
-		lua_pushinteger(L, vita2d_pvf_text_width(font->f3, font->size, text));
+		lua_pushinteger(L, vita2d_pvf_text_width(font->f3, font->scale, text));
 	return 1;
 }
 
@@ -698,9 +698,9 @@ static int lua_fheight(lua_State *L) {
 	if (font->f != NULL)
 		lua_pushinteger(L, vita2d_font_text_height(font->f, font->size, text));
 	else if (font->f2 != NULL)
-		lua_pushinteger(L, vita2d_pgf_text_height(font->f2, font->size, text));
+		lua_pushinteger(L, vita2d_pgf_text_height(font->f2, font->scale, text));
 	else
-		lua_pushinteger(L, vita2d_pvf_text_height(font->f3, font->size, text));
+		lua_pushinteger(L, vita2d_pvf_text_height(font->f3, font->scale, text));
 	return 1;
 }
 
