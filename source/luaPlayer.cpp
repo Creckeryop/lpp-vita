@@ -40,7 +40,6 @@
 static lua_State *L;
 
 char errorMex[1024];
-
 // lua-compat
 void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
   luaL_checkstack(L, nup+1, "too many upvalues");
@@ -61,7 +60,7 @@ const char *runScript(const char* script, bool isStringBuffer)
 	
 	// Standard libraries
 	luaL_openlibs(L);
-	
+
 	// Modules
 	bitlib_init(L);
 	luaControls_init(L);
@@ -77,14 +76,14 @@ const char *runScript(const char* script, bool isStringBuffer)
 	luaVideo_init(L);
 	luaCamera_init(L);
 	luaDatabase_init(L);
-	
+ 
 	int s = 0;
 	const char *errMsg = NULL;
-	
+ 
 	if(!isStringBuffer) 
 		s = luaL_loadfile(L, script);
 	else 
-		s = luaL_loadbuffer(L, script, strlen(script), NULL);
+		s = luaL_loadbuffer(L, script, strlen(script), "app0:index.lua");
 		
 	if (s == 0) 
 	{
