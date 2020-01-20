@@ -120,9 +120,14 @@ static volatile uint8_t asyncMode = DOWNLOAD_END;
 static char asyncUrl[512];
 static char asyncDest[256];
 static char asyncUseragent[256];
-static uint8_t asyncMethod;
 static char asyncPostdata[2048];
+static char content_length[32];
+static uint8_t asyncMethod;
+static uint8_t asyncContentType;
 static int asyncPostsize;
+
+static const uint8_t JSON = 0;
+static const uint8_t XWWW = 1;
 
 static int downloadThread(unsigned int args, void* arg)
 {
@@ -178,9 +183,16 @@ static int downloadThread(unsigned int args, void* arg)
 	}
 	struct curl_slist *headerchunk = NULL;
 	headerchunk = curl_slist_append(headerchunk, "Accept: */*");
-	headerchunk = curl_slist_append(headerchunk, "Content-Type: application/x-www-form-urlencoded");
+	switch (asyncContentType)
+	{	
+	case JSON:
+		headerchunk = curl_slist_append(headerchunk, "Content-Type: application/json");
+		break;
+	case XWWW:
+		headerchunk = curl_slist_append(headerchunk, "Content-Type: application/x-www-form-urlencoded");
+		break;
+	}
 	headerchunk = curl_slist_append(headerchunk, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
-	char content_length[32];
 	sprintf(content_length, "Content-Length: %i", asyncMethod == SCE_HTTP_METHOD_POST && asyncPostdata != NULL ? asyncPostsize : 0);
 	headerchunk = curl_slist_append(headerchunk, content_length);
 	curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerchunk);
@@ -615,7 +627,7 @@ static int lua_downloadasync(lua_State *L){
 static int lua_string(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 4) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 5) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -623,6 +635,7 @@ static int lua_string(lua_State *L){
 	const char* useragent = (argc >= 2) ? luaL_checkstring(L,2) : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36";
 	uint8_t method = (argc >= 3) ? luaL_checkinteger(L,3) : SCE_HTTP_METHOD_GET;
 	const char* postdata = (argc >= 4) ? luaL_checkstring(L,4) : NULL;
+	uint8_t contentType = (argc >= 5) ? luaL_checkinteger(L,5) : XWWW;
 	int postsize = (argc >= 4) ? strlen(postdata) : 0;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
@@ -656,7 +669,15 @@ static int lua_string(lua_State *L){
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, buffer);
 	struct curl_slist *headerchunk = NULL;
 	headerchunk = curl_slist_append(headerchunk, "Accept: */*");
-	headerchunk = curl_slist_append(headerchunk, "Content-Type: application/x-www-form-urlencoded");
+	switch (contentType)
+	{	
+	case JSON:
+		headerchunk = curl_slist_append(headerchunk, "Content-Type: application/json");
+		break;
+	case XWWW:
+		headerchunk = curl_slist_append(headerchunk, "Content-Type: application/x-www-form-urlencoded");
+		break;
+	}
 	headerchunk = curl_slist_append(headerchunk, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
 	char content_length[32];
 	sprintf(content_length, "Content-Length: %i", method == SCE_HTTP_METHOD_POST && postdata != NULL ? asyncPostsize : 0);
@@ -673,7 +694,7 @@ static int lua_string(lua_State *L){
 static int lua_stringasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 4) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 5) return luaL_error(L, "wrong number of arguments");
 	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -682,6 +703,7 @@ static int lua_stringasync(lua_State *L){
 	asyncMethod = (argc >= 3) ? luaL_checkinteger(L,3) : SCE_HTTP_METHOD_GET;
 	const char* postdata = (argc >= 4) ? luaL_checkstring(L,4) : NULL;
 	asyncPostsize = (argc >= 4) ? strlen(postdata) : 0;
+	asyncContentType = (argc >= 5) ? luaL_checkinteger(L,5) : XWWW;
 	sprintf(asyncUrl, url);
 	sprintf(asyncUseragent, useragent);
 	if (postdata != NULL) sprintf(asyncPostdata, postdata);
@@ -738,6 +760,8 @@ void luaNetwork_init(lua_State *L) {
 	uint8_t CONNECT_METHOD = SCE_HTTP_METHOD_CONNECT;
 	uint8_t UDP_SOCKET = SCE_NET_IPPROTO_UDP;
 	uint8_t TCP_SOCKET = SCE_NET_IPPROTO_TCP;
+	uint8_t JSON = 0;
+	uint8_t XWWW = 1;
 	if (isNet)
 	{
 		curl_easy_cleanup(curl_handle);
@@ -759,6 +783,8 @@ void luaNetwork_init(lua_State *L) {
 	VariableRegister(L,DELETE_METHOD);
 	VariableRegister(L,TRACE_METHOD);
 	VariableRegister(L,CONNECT_METHOD);
+	VariableRegister(L,JSON);
+	VariableRegister(L,XWWW);
 	lua_newtable(L);
 	luaL_setfuncs(L, Network_functions, 0);
 	lua_setglobal(L, "Network");
