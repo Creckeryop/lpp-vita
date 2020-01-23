@@ -35,6 +35,56 @@
 #include "include/utils.h"
 #include <vitasdk.h>
 
+/*
+	static void utf16_to_utf8(const uint16_t *src, uint8_t *dst);
+	static void utf8_to_utf16(const uint8_t *src, uint16_t *dst);
+	This functions was taken from VitaShell made by @TheOfficialFloW
+	repo: https://github.com/TheOfficialFloW/VitaShell
+	file: https://github.com/TheOfficialFloW/VitaShell/blob/master/ime_dialog.c
+*/
+
+static void utf16_to_utf8(const uint16_t *src, uint8_t *dst) {
+  int i;
+  for (i = 0; src[i]; i++) {
+    if ((src[i] & 0xFF80) == 0) {
+      *(dst++) = src[i] & 0xFF;
+    } else if((src[i] & 0xF800) == 0) {
+      *(dst++) = ((src[i] >> 6) & 0xFF) | 0xC0;
+      *(dst++) = (src[i] & 0x3F) | 0x80;
+    } else if((src[i] & 0xFC00) == 0xD800 && (src[i + 1] & 0xFC00) == 0xDC00) {
+      *(dst++) = (((src[i] + 64) >> 8) & 0x3) | 0xF0;
+      *(dst++) = (((src[i] >> 2) + 16) & 0x3F) | 0x80;
+      *(dst++) = ((src[i] >> 4) & 0x30) | 0x80 | ((src[i + 1] << 2) & 0xF);
+      *(dst++) = (src[i + 1] & 0x3F) | 0x80;
+      i += 1;
+    } else {
+      *(dst++) = ((src[i] >> 12) & 0xF) | 0xE0;
+      *(dst++) = ((src[i] >> 6) & 0x3F) | 0x80;
+      *(dst++) = (src[i] & 0x3F) | 0x80;
+    }
+  }
+
+  *dst = '\0';
+}
+
+static void utf8_to_utf16(const uint8_t *src, uint16_t *dst) {
+  int i;
+  for (i = 0; src[i];) {
+    if ((src[i] & 0xE0) == 0xE0) {
+      *(dst++) = ((src[i] & 0x0F) << 12) | ((src[i + 1] & 0x3F) << 6) | (src[i + 2] & 0x3F);
+      i += 3;
+    } else if ((src[i] & 0xC0) == 0xC0) {
+      *(dst++) = ((src[i] & 0x1F) << 6) | (src[i + 1] & 0x3F);
+      i += 2;
+    } else {
+      *(dst++) = src[i];
+      i += 1;
+    }
+  }
+
+  *dst = '\0';
+}
+
 #define stringify(str) #str
 #define VariableRegister(lua, value) do { lua_pushinteger(lua, value); lua_setglobal (lua, stringify(value)); } while(0)
 
@@ -51,7 +101,7 @@ static int lua_setup(lua_State *L){
 	#ifndef SKIP_ERROR_HANDLING
 	if (argc != 2 && argc != 3 && argc != 4 && argc != 5 && argc != 6) return luaL_error(L, "wrong number of arguments");
 	#endif
-	char* title_ascii = (char*)luaL_checkstring(L, 1);
+	char* title_utf8 = (char*)luaL_checkstring(L, 1);
 	char* text = (char*)luaL_checkstring(L, 2);
 	SceUInt32 length = SCE_IME_DIALOG_MAX_TEXT_LENGTH;
 	SceUInt32 type = SCE_IME_TYPE_BASIC_LATIN;
@@ -65,12 +115,11 @@ static int lua_setup(lua_State *L){
 	if (length > SCE_IME_DIALOG_MAX_TEXT_LENGTH) length = SCE_IME_DIALOG_MAX_TEXT_LENGTH;
 	if (type > 3) return luaL_error(L, "invalid keyboard type");
 	if (mode > 1) return luaL_error(L, "invalid keyboard mode");
-	if (strlen(title_ascii) > SCE_IME_DIALOG_MAX_TITLE_LENGTH) return luaL_error(L, "title is too long");
+	if (strlen(title_utf8) > SCE_IME_DIALOG_MAX_TITLE_LENGTH) return luaL_error(L, "title is too long");
 	#endif
 	
-	// Converting input to UTF16
-	ascii2utf(initial_text, text);
-	ascii2utf(title, title_ascii);
+	utf8_to_utf16((uint8_t *)title_utf8, (uint16_t *)title);
+	utf8_to_utf16((uint8_t *)text, (uint16_t *)initial_text);
 	
 	// Initializing OSK
 	SceImeDialogParam param;
@@ -114,7 +163,7 @@ static int lua_input(lua_State *L){
 	if (argc != 0) return luaL_error(L, "wrong number of arguments");
 	#endif
 	char res[SCE_IME_DIALOG_MAX_TEXT_LENGTH+1];
-	utf2ascii(res, input_text);
+	utf16_to_utf8(input_text, (uint8_t*)res);
 	lua_pushstring(L, res);
 	return 1;
 }
