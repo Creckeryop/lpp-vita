@@ -542,7 +542,7 @@ static int lua_connect(lua_State *L)
 static int lua_download(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 2 || argc > 5) return luaL_error(L, "wrong number of arguments");
+	if (argc < 2 || argc > 7) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -551,9 +551,12 @@ static int lua_download(lua_State *L){
 	const char* useragent = (argc >= 3) ? luaL_checkstring(L,3) : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36";
 	uint8_t method = (argc >= 4) ? luaL_checkinteger(L,4) : SCE_HTTP_METHOD_GET;
 	const char* postdata = (argc >= 5) ? luaL_checkstring(L,5) : NULL;
+	uint8_t contentType = (argc >= 6) ? luaL_checkinteger(L,6) : XWWW;
+	const char* cookie = (argc >= 7) ? luaL_checkstring(L,7) : NULL;
 	int postsize = (argc >= 5) ? strlen(postdata) : 0;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie);
 	switch (method){
 	case SCE_HTTP_METHOD_GET:
 		curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1L);
@@ -583,7 +586,15 @@ static int lua_download(lua_State *L){
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &fh);
 	struct curl_slist *headerchunk = NULL;
 	headerchunk = curl_slist_append(headerchunk, "Accept: */*");
-	headerchunk = curl_slist_append(headerchunk, "Content-Type: application/x-www-form-urlencoded");
+	switch (contentType)
+	{	
+	case JSON:
+		headerchunk = curl_slist_append(headerchunk, "Content-Type: application/json");
+		break;
+	case XWWW:
+		headerchunk = curl_slist_append(headerchunk, "Content-Type: application/x-www-form-urlencoded");
+		break;
+	}
 	headerchunk = curl_slist_append(headerchunk, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
 	char content_length[32];
 	sprintf(content_length, "Content-Length: %i", method == SCE_HTTP_METHOD_POST && postdata != NULL ? asyncPostsize : 0);
@@ -598,7 +609,7 @@ static int lua_download(lua_State *L){
 static int lua_downloadasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 2 || argc > 5) return luaL_error(L, "wrong number of arguments");
+	if (argc < 2 || argc > 7) return luaL_error(L, "wrong number of arguments");
 	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -608,6 +619,9 @@ static int lua_downloadasync(lua_State *L){
 	asyncMethod = (argc >= 4) ? luaL_checkinteger(L,4) : SCE_HTTP_METHOD_GET;
 	const char* postdata = (argc >= 5) ? luaL_checkstring(L,5) : NULL;
 	asyncPostsize = (argc >= 5) ? strlen(postdata) : 0;
+	asyncContentType = (argc >= 6) ? luaL_checkinteger(L,6) : XWWW;
+	const char* cookie = (argc >= 7) ? luaL_checkstring(L,7) : "";
+	sprintf(asyncCookie, cookie);
 	sprintf(asyncUrl, url);
 	sprintf(asyncDest, file);
 	sprintf(asyncUseragent, useragent);
@@ -629,7 +643,7 @@ static int lua_downloadasync(lua_State *L){
 static int lua_string(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 5) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 6) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -638,9 +652,11 @@ static int lua_string(lua_State *L){
 	uint8_t method = (argc >= 3) ? luaL_checkinteger(L,3) : SCE_HTTP_METHOD_GET;
 	const char* postdata = (argc >= 4) ? luaL_checkstring(L,4) : NULL;
 	uint8_t contentType = (argc >= 5) ? luaL_checkinteger(L,5) : XWWW;
+	const char* cookie = (argc >= 6) ? luaL_checkstring(L,6) : NULL;
 	int postsize = (argc >= 4) ? strlen(postdata) : 0;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie);
 	switch (method)
 	{
 	case SCE_HTTP_METHOD_GET:
