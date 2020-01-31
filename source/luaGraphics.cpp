@@ -222,7 +222,7 @@ static int lua_emptyrect(lua_State *L){
 		y2 = y1;
 		y1 = tmp;
 	}
-	vita2d_draw_line(x1, y1, x2, y1, color);
+	vita2d_draw_line(x1-1, y1, x2, y1, color);
 	vita2d_draw_line(x1, y2, x2, y2, color);
 	vita2d_draw_line(x1, y1, x1, y2, color);
 	vita2d_draw_line(x2, y1, x2, y2, color);
