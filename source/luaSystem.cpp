@@ -1005,6 +1005,40 @@ static int lua_getpsid(lua_State *L){
 	return 1;
 }
 
+static int lua_freespace(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	uint64_t free_storage = 0;
+	uint64_t dummy;
+	char *dev_name = luaL_checkstring(L, 1);
+	SceIoDevInfo info;
+	memset(&info, 0, sizeof(SceIoDevInfo));
+	int res = sceIoDevctl(dev_name, 0x3001, NULL, 0, &info, sizeof(SceIoDevInfo));
+	if (res >= 0) free_storage = info.free_size;
+	else sceAppMgrGetDevInfo(dev_name, &dummy, &free_storage);
+	lua_pushnumber(L, free_storage);
+	return 1;
+}
+
+static int lua_totalspace(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	uint64_t total_storage = 0;
+	uint64_t dummy;
+	char *dev_name = luaL_checkstring(L, 1);
+	SceIoDevInfo info;
+	memset(&info, 0, sizeof(SceIoDevInfo));
+	int res = sceIoDevctl(dev_name, 0x3001, NULL, 0, &info, sizeof(SceIoDevInfo));
+	if (res >= 0) total_storage = info.max_size;
+	else sceAppMgrGetDevInfo(dev_name, &total_storage, &dummy);
+	lua_pushnumber(L, total_storage);
+	return 1;
+}
+
 //Register our System Functions
 static const luaL_Reg System_functions[] = {
   {"openFile",                  lua_openfile},
@@ -1068,6 +1102,8 @@ static const luaL_Reg System_functions[] = {
   {"getAsyncState",             lua_getasyncstate},
   {"getAsyncResult",            lua_getasyncres},
   {"getPsId",                   lua_getpsid},
+  {"getFreeSpace",              lua_freespace},
+  {"getTotalSpace",             lua_totalspace},
   {0, 0}
 };
 
