@@ -1,5 +1,5 @@
 TARGET		:= lpp-vita
-SOURCES		:= source/include/ftp source/include source source/include/audiodec
+SOURCES		:= source/resources source/include/ftp source/include/autovpk source/include source source/include/audiodec 
 			
 INCLUDES	:= include
 
@@ -14,7 +14,7 @@ LIBS = -lcurl -lssl -lcrypto -lvorbisfile -lvorbis -logg -lsndfile -lvita2d -lSc
 CFILES   := $(foreach dir,$(SOURCES), $(wildcard $(dir)/*.c))
 CPPFILES   := $(foreach dir,$(SOURCES), $(wildcard $(dir)/*.cpp))
 BINFILES := $(foreach dir,$(DATA), $(wildcard $(dir)/*.bin))
-OBJS     := $(addsuffix .o,$(BINFILES)) $(CFILES:.c=.o) $(CPPFILES:.cpp=.o) 
+OBJS     := $(addsuffix .o,$(BINFILES)) $(CFILES:.c=.o) $(CPPFILES:.cpp=.o) source/head.o
 
 PREFIX  = arm-vita-eabi
 CC      = $(PREFIX)-gcc
@@ -26,7 +26,11 @@ CFLAGS  = -fno-lto -g -Wl,-q -O3 -DWANT_FASTWAV -DHAVE_LIBSPEEXDSP \
 CXXFLAGS  = $(CFLAGS) -fno-exceptions -std=gnu++11 -fpermissive
 ASFLAGS = $(CFLAGS)
 
+
 all: $(TARGET).velf
+	
+%.o: %.bin
+	$(PREFIX)-ld -r -b binary -o $@ $^
 
 %.velf: %.elf
 	cp $< $<.unstripped.elf
