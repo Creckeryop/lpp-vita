@@ -310,8 +310,8 @@ static int lua_closesong(lua_State *L){
 static int lua_pause(lua_State *L){
 	#ifndef SKIP_ERROR_HANDLING
 	int argc = lua_gettop(L);
-	#endif
 	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
 	DecodedMusic* mus = (DecodedMusic*)luaL_checkinteger(L, 1);
 	if (mus->isPlaying) mus->pauseTrigger = true;
 
@@ -375,15 +375,17 @@ static int lua_opensound(lua_State *L){
 	FILE* f = fopen(path, "rb");
 	#ifndef SKIP_ERROR_HANDLING
 	if (f == NULL) return luaL_error(L, "file doesn't exist.");
+	#endif
 	uint32_t magic;
 	fread(&magic, 1, 4, f);	
+	#ifndef SKIP_ERROR_HANDLING
 	if (magic != 0x03334449 /* MP3 */ && magic != 0x6468544D /* MIDI */ && magic != 0x5367674F /* OGG */ && magic != 0x46464952 /* WAV */ && magic != 0x4D524F46 /* AIF */ && magic != 0x56485350 /* PSHV */){
 		fclose(f);
 		free(memblock);
 		return luaL_error(L, "unknown audio file format.");
 	}
-	fseek(f, 0, SEEK_SET);
 	#endif
+	fseek(f, 0, SEEK_SET);
 	
 	// Metadata extraction
 	uint32_t half_magic = 0xDEADBEEF, info_size = 0xDEADBEEF, offset;

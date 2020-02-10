@@ -104,11 +104,12 @@ static int lua_launch(lua_State *L){
 	#endif
 	char* file = (char*)luaL_checkstring(L,1);
 	unsigned char* buffer;
-	SceUID bin = sceIoOpen(file, SCE_O_RDONLY, 0777);
 	#ifndef SKIP_ERROR_HANDLING
+	SceUID bin = sceIoOpen(file, SCE_O_RDONLY, 0777);
 	if (bin < 0) return luaL_error(L, "error opening file.");
+	else 
+	sceIoClose(bin);
 	#endif
-	else sceIoClose(bin);
 	sceAppMgrLoadExec(file, NULL, NULL);
 	return 0;
 }
