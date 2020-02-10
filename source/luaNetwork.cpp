@@ -123,10 +123,13 @@ static char asyncUseragent[256];
 static char asyncPostdata[2048];
 static char content_length[32];
 static char asyncCookie[256];
+static char asyncHeader1[128];
+static char asyncHeader2[128];
+static char asyncHeader3[128];
+static char asyncHeader4[128];
 static uint8_t asyncMethod;
 static uint8_t asyncContentType;
 static int asyncPostsize;
-
 static const uint8_t JSON = 0;
 static const uint8_t XWWW = 1;
 
@@ -197,6 +200,10 @@ static int downloadThread(unsigned int args, void* arg)
 	headerchunk = curl_slist_append(headerchunk, "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36");
 	sprintf(content_length, "Content-Length: %i", asyncMethod == SCE_HTTP_METHOD_POST && asyncPostdata != NULL ? asyncPostsize : 0);
 	headerchunk = curl_slist_append(headerchunk, content_length);
+	headerchunk = curl_slist_append(headerchunk, asyncHeader1);
+	headerchunk = curl_slist_append(headerchunk, asyncHeader2);
+	headerchunk = curl_slist_append(headerchunk, asyncHeader3);
+	headerchunk = curl_slist_append(headerchunk, asyncHeader4);
 	curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerchunk);
 	curl_easy_perform(curl_handle);
 	curl_slist_free_all(headerchunk);
@@ -542,7 +549,7 @@ static int lua_connect(lua_State *L)
 static int lua_download(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 2 || argc > 7) return luaL_error(L, "wrong number of arguments");
+	if (argc < 2 || argc > 11) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -554,6 +561,10 @@ static int lua_download(lua_State *L){
 	uint8_t contentType = (argc >= 6) ? luaL_checkinteger(L,6) : XWWW;
 	const char* cookie = (argc >= 7) ? luaL_checkstring(L,7) : NULL;
 	int postsize = (argc >= 5) ? strlen(postdata) : 0;
+	const char* header1 = (argc >= 8) ? luaL_checkstring(L,8) : NULL;
+	const char* header2 = (argc >= 9) ? luaL_checkstring(L,9) : NULL;
+	const char* header3 = (argc >= 10) ? luaL_checkstring(L,10) : NULL;
+	const char* header4 = (argc >= 11) ? luaL_checkstring(L,11) : NULL;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie);
@@ -599,6 +610,14 @@ static int lua_download(lua_State *L){
 	char content_length[32];
 	sprintf(content_length, "Content-Length: %i", method == SCE_HTTP_METHOD_POST && postdata != NULL ? asyncPostsize : 0);
 	headerchunk = curl_slist_append(headerchunk, content_length);
+	if (header1)
+		headerchunk = curl_slist_append(headerchunk, header1);
+	if (header2)
+		headerchunk = curl_slist_append(headerchunk, header2);
+	if (header3)
+		headerchunk = curl_slist_append(headerchunk, header3);
+	if (header4)
+		headerchunk = curl_slist_append(headerchunk, header4);
 	curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerchunk);
 	curl_easy_perform(curl_handle);
 	curl_slist_free_all(headerchunk);
@@ -609,7 +628,7 @@ static int lua_download(lua_State *L){
 static int lua_downloadasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 2 || argc > 7) return luaL_error(L, "wrong number of arguments");
+	if (argc < 2 || argc > 11) return luaL_error(L, "wrong number of arguments");
 	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -621,10 +640,18 @@ static int lua_downloadasync(lua_State *L){
 	asyncPostsize = (argc >= 5) ? strlen(postdata) : 0;
 	asyncContentType = (argc >= 6) ? luaL_checkinteger(L,6) : XWWW;
 	const char* cookie = (argc >= 7) ? luaL_checkstring(L,7) : "";
+	const char* header1 = (argc >= 8) ? luaL_checkstring(L,8) : "";
+	const char* header2 = (argc >= 9) ? luaL_checkstring(L,9) : "";
+	const char* header3 = (argc >= 10) ? luaL_checkstring(L,10) : "";
+	const char* header4 = (argc >= 11) ? luaL_checkstring(L,11) : "";
 	sprintf(asyncCookie, cookie);
 	sprintf(asyncUrl, url);
 	sprintf(asyncDest, file);
 	sprintf(asyncUseragent, useragent);
+	sprintf(asyncHeader1, header1);
+	sprintf(asyncHeader2, header2);
+	sprintf(asyncHeader3, header3);
+	sprintf(asyncHeader4, header4);
 	if (postdata != NULL) sprintf(asyncPostdata, postdata);
 	else asyncPostdata[0] = 0;
 	async_task_num++;
@@ -643,7 +670,7 @@ static int lua_downloadasync(lua_State *L){
 static int lua_string(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 6) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 10) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -654,6 +681,10 @@ static int lua_string(lua_State *L){
 	uint8_t contentType = (argc >= 5) ? luaL_checkinteger(L,5) : XWWW;
 	const char* cookie = (argc >= 6) ? luaL_checkstring(L,6) : NULL;
 	int postsize = (argc >= 4) ? strlen(postdata) : 0;
+	const char* header1 = (argc >= 7) ? luaL_checkstring(L,7) : NULL;
+	const char* header2 = (argc >= 8) ? luaL_checkstring(L,8) : NULL;
+	const char* header3 = (argc >= 9) ? luaL_checkstring(L,9) : NULL;
+	const char* header4 = (argc >= 10) ? luaL_checkstring(L,10) : NULL;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie);
@@ -700,6 +731,14 @@ static int lua_string(lua_State *L){
 	char content_length[32];
 	sprintf(content_length, "Content-Length: %i", method == SCE_HTTP_METHOD_POST && postdata != NULL ? asyncPostsize : 0);
 	headerchunk = curl_slist_append(headerchunk, content_length);
+	if (header1)
+		headerchunk = curl_slist_append(headerchunk, header1);
+	if (header2)
+		headerchunk = curl_slist_append(headerchunk, header2);
+	if (header3)
+		headerchunk = curl_slist_append(headerchunk, header3);
+	if (header4)
+		headerchunk = curl_slist_append(headerchunk, header4);
 	curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerchunk);
 	curl_easy_perform(curl_handle);
 	curl_slist_free_all(headerchunk);
@@ -712,7 +751,7 @@ static int lua_string(lua_State *L){
 static int lua_stringasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 6) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 10) return luaL_error(L, "wrong number of arguments");
 	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -723,9 +762,17 @@ static int lua_stringasync(lua_State *L){
 	asyncPostsize = (argc >= 4) ? strlen(postdata) : 0;
 	asyncContentType = (argc >= 5) ? luaL_checkinteger(L,5) : XWWW;
 	const char* cookie = (argc >= 6) ? luaL_checkstring(L,6) : "";
+	const char* header1 = (argc >= 7) ? luaL_checkstring(L,7) : "";
+	const char* header2 = (argc >= 8) ? luaL_checkstring(L,8) : "";
+	const char* header3 = (argc >= 9) ? luaL_checkstring(L,9) : "";
+	const char* header4 = (argc >= 10) ? luaL_checkstring(L,10) : "";
 	sprintf(asyncCookie, cookie);
 	sprintf(asyncUrl, url);
 	sprintf(asyncUseragent, useragent);
+	sprintf(asyncHeader1, header1);
+	sprintf(asyncHeader2, header2);
+	sprintf(asyncHeader3, header3);
+	sprintf(asyncHeader4, header4);
 	if (postdata != NULL) sprintf(asyncPostdata, postdata);
 	else asyncPostdata[0] = 0;
 	async_task_num++;
