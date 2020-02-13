@@ -35,6 +35,7 @@ extern "C"{
 	#include <vitasdk.h>
 	#include "include/piclib.h"
 	#include "include/apptool.h"
+	#include "include/autovpk/file.h"
 }
 #include "include/Archives.h"
 #include "include/luaplayer.h"
@@ -179,6 +180,54 @@ static int lua_closefile(lua_State *L){
 	sceIoClose(fileHandle);
 	return 0;
 }
+
+static int moveThread(unsigned int args, void* arg){
+	movePath(asyncName, asyncDest, asyncMode);
+	asyncMode = EXTRACT_END;
+	async_task_num--;
+	asyncResult = 1;
+	sceKernelExitDeleteThread(0);
+	return 0;
+}
+
+static int lua_movefile(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc > 3 || argc < 2) return luaL_error(L, "wrong number of arguments");
+	#endif
+	const char* src = luaL_checkstring(L, 1);
+	const char* dst = luaL_checkstring(L, 2);
+	int flags = (argc>=3) ? luaL_checkinteger(L, 3) : 0;
+	movePath(src, dst, flags);
+	return 1;
+}
+
+
+static int lua_movefileasync(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc > 3 || argc < 2) return luaL_error(L, "wrong number of arguments");
+	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
+	#endif
+	const char* src = luaL_checkstring(L, 1);
+	const char* dst = luaL_checkstring(L, 2);
+	int flags = (argc>=3) ? luaL_checkinteger(L, 3) : 0;
+	sprintf(asyncName, src);
+	sprintf(asyncDest, dst);
+	asyncMode = flags;
+	movePath(src, dst, flags);
+	async_task_num++;
+	SceUID thd = sceKernelCreateThread("Move Thread", &moveThread, 0x10000100, 0x100000, 0, 0, NULL);
+	if (thd < 0)
+	{
+		asyncResult = -1;
+		return 0;
+	}
+	asyncResult = 0;
+	sceKernelStartThread(thd, 0, NULL);
+	return 1;
+}
+
 
 static int lua_seekfile(lua_State *L){
 	int argc = lua_gettop(L);
@@ -1076,6 +1125,8 @@ static int lua_checkApp(lua_State *L){
 static const luaL_Reg System_functions[] = {
   {"openFile",                  lua_openfile},
   {"readFile",                  lua_readfile},
+  {"move",                  	lua_movefile},
+  {"moveAsync",                 lua_movefileasync},
   {"writeFile",                 lua_writefile},
   {"closeFile",                 lua_closefile},  
   {"seekFile",                  lua_seekfile},  
@@ -1167,4 +1218,6 @@ void luaSystem_init(lua_State *L) {
 	VariableRegister(L,SET);
 	VariableRegister(L,END);
 	VariableRegister(L,CUR);
+	VariableRegister(L,MOVE_INTEGRATE);
+	VariableRegister(L,MOVE_REPLACE);
 }

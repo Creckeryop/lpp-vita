@@ -27,7 +27,6 @@
 #- All the devs involved in Rejuvenate and vita-toolchain --------------------------------------------------------------#
 #- xerpi for drawing libs and for FTP server code ----------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------*/
-
 #include <vitasdk.h>
 #include <stdlib.h>
 #include <string.h>

@@ -181,3 +181,94 @@ int copyPath(const char *src_path, const char *dst_path) {
 
   return 1;
 }
+
+int movePath(const char *src_path, const char *dst_path, int flags) {
+  // The source and destination paths are identical
+  if (strcasecmp(src_path, dst_path) == 0) {
+    return 0;
+  }
+
+  // The destination is a subfolder of the source folder
+  int len = strlen(src_path);
+  if (strncasecmp(src_path, dst_path, len) == 0 && (dst_path[len] == '/' || dst_path[len - 1] == '/')) {
+    return -1;
+  }
+
+  int res = sceIoRename(src_path, dst_path);
+
+  if (res == SCE_ERROR_ERRNO_EEXIST && flags & (MOVE_INTEGRATE | MOVE_REPLACE)) {
+    // Src stat
+    SceIoStat src_stat;
+    memset(&src_stat, 0, sizeof(SceIoStat));
+    res = sceIoGetstat(src_path, &src_stat);
+    if (res < 0)
+      return res;
+
+    // Dst stat
+    SceIoStat dst_stat;
+    memset(&dst_stat, 0, sizeof(SceIoStat));
+    res = sceIoGetstat(dst_path, &dst_stat);
+    if (res < 0)
+      return res;
+
+    // Is dir
+    int src_is_dir = SCE_S_ISDIR(src_stat.st_mode);
+    int dst_is_dir = SCE_S_ISDIR(dst_stat.st_mode);
+
+    // One of them is a file and the other a directory, no replacement or integration possible
+    if (src_is_dir != dst_is_dir)
+      return -2;
+
+    // Replace file
+    if (!src_is_dir && !dst_is_dir && flags & MOVE_REPLACE) {
+      sceIoRemove(dst_path);
+
+      res = sceIoRename(src_path, dst_path);
+      if (res < 0)
+        return res;
+
+      return 1;
+    }
+
+    // Integrate directory
+    if (src_is_dir && dst_is_dir && flags & MOVE_INTEGRATE) {
+      SceUID dfd = sceIoDopen(src_path);
+      if (dfd < 0)
+        return dfd;
+
+      int res = 0;
+
+      do {
+        SceIoDirent dir;
+        memset(&dir, 0, sizeof(SceIoDirent));
+
+        res = sceIoDread(dfd, &dir);
+        if (res > 0) {
+          char *new_src_path = malloc(strlen(src_path) + strlen(dir.d_name) + 2);
+          snprintf(new_src_path, MAX_PATH_LENGTH, "%s%s%s", src_path, hasEndSlash(src_path) ? "" : "/", dir.d_name);
+
+          char *new_dst_path = malloc(strlen(dst_path) + strlen(dir.d_name) + 2);
+          snprintf(new_dst_path, MAX_PATH_LENGTH, "%s%s%s", dst_path, hasEndSlash(dst_path) ? "" : "/", dir.d_name);
+
+          // Recursive move
+          int ret = movePath(new_src_path, new_dst_path, flags);
+
+          free(new_dst_path);
+          free(new_src_path);
+
+          if (ret <= 0) {
+            sceIoDclose(dfd);
+            return ret;
+          }
+        }
+      } while (res > 0);
+
+      sceIoDclose(dfd);
+
+      // Integrated, now remove this directory
+      sceIoRmdir(src_path);
+    }
+  }
+
+  return 1;
+}

@@ -22,7 +22,14 @@
 
 #ifndef FILE_H
 #define FILE_H
+
+enum FileMoveFlags {
+  MOVE_INTEGRATE  = 0x1, // Integrate directories
+  MOVE_REPLACE    = 0x2, // Replace files
+};
+
 int hasEndSlash(const char *path);
 int copyFile(const char *src_path, const char *dst_path);
 int copyPath(const char *src_path, const char *dst_path);
+int movePath(const char *src_path, const char *dst_path, int flags);
 #endif
