@@ -42,7 +42,7 @@
 #- Raphael for vram manager code ---------------------------------------------------------------------------------------#
 #- Dynodzzo for LSD concepts -------------------------------------------------------------------------------------------#
 #- ab_portugal for Image.negative function -----------------------------------------------------------------------------#
-#- JiCé for drawCircle function ----------------------------------------------------------------------------------------#
+#- JiCï¿½ for drawCircle function ----------------------------------------------------------------------------------------#
 #- Rapper_skull & DarkGiovy for testing LuaPlayer Plus and coming up with some neat ideas for it. ----------------------#
 #-----------------------------------------------------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------#
@@ -70,6 +70,13 @@ extern "C" {
  * A zip
  */
 typedef void Zip;
+
+typedef struct
+{
+	char* filename;
+	unsigned long size;
+	void *next;
+} ZipFileList;
 
 /**
  * A file within a zip
@@ -131,6 +138,17 @@ int ZipExtract(Zip *zip, const char *password, const char* path);
  * @param file - A valid (previously read) ::ZipFile
  */
 void ZipFileFree(ZipFile *file);
+
+/**
+ * Get list all files from a zip
+ *
+ * @param zip - A valid (previously opened) ::Zip file
+ * 
+ * @param fileList - Linked list of pathes for files inside zip file
+ * 
+ * @returns 1 on success, 0 on error.
+ */
+int ZipList(Zip *zip, ZipFileList *fileList);
 
 #ifdef __cplusplus
 }

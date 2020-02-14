@@ -713,6 +713,45 @@ static int lua_model(lua_State *L){
 	return 1;
 }
 
+static int lua_listZip(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if(argc != 2 && argc != 3) return luaL_error(L, "wrong number of arguments.");
+	#endif
+	const char* FileToExtract = luaL_checkstring(L, 1);
+	Zip* handle = ZipOpen(FileToExtract);
+	#ifndef SKIP_ERROR_HANDLING
+	if (handle == NULL) luaL_error(L, "error opening ZIP file.");
+	#endif
+	ZipFileList list;
+	int result = ZipList(handle, &list);
+	ZipClose(handle);
+	lua_newtable(L);
+	int i = 1;
+	ZipFileList *cursor = &list;
+	while (cursor) {
+		lua_pushnumber(L, i++);  /* push key for file entry */
+		lua_newtable(L);
+		lua_pushstring(L, "name");
+		lua_pushstring(L, cursor->filename);
+		lua_settable(L, -3);
+		lua_pushstring(L, "size");
+		lua_pushnumber(L, cursor->size);
+		lua_settable(L, -3);
+		lua_pushstring(L, "directory");
+		lua_pushboolean(L, hasEndSlash(cursor->filename));
+		lua_settable(L, -3);
+		lua_settable(L, -3);
+		free(cursor->filename);
+		ZipFileList * prev = cursor;
+		cursor = (ZipFileList*)cursor->next;
+		if (prev != &list)
+			free(prev);
+	}
+	return 1;
+}
+
 static int lua_ZipExtract(lua_State *L) {
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
@@ -1170,6 +1209,7 @@ static const luaL_Reg System_functions[] = {
   {"getTitle",                  lua_title},
   {"getTitleID",                lua_titleid},
   {"extractSfo",                lua_extractsfo},
+  {"listZip",                	lua_listZip},
   {"extractZip",                lua_ZipExtract},
   {"extractZipAsync",           lua_ZipExtractAsync},
   {"extractFromZip",            lua_getfilefromzip},
