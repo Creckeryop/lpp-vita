@@ -713,6 +713,56 @@ static int lua_model(lua_State *L){
 	return 1;
 }
 
+static int lua_listZip(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if(argc != 1) return luaL_error(L, "wrong number of arguments.");
+	#endif
+	const char* FileToExtract = luaL_checkstring(L, 1);
+	Zip* handle = ZipOpen(FileToExtract);
+	#ifndef SKIP_ERROR_HANDLING
+	if (handle == NULL) luaL_error(L, "error opening ZIP file.");
+	#endif
+	unsigned int i;
+	zipGlobalInfo gi;
+	memset(&gi, 0, sizeof(zipGlobalInfo));
+	int err;
+	lua_newtable(L);
+
+	err = ZitGlobalInfo(handle, &gi);
+
+	if(err != 0)
+		printf("Error with zipfile in ZitGlobalInfo\n");
+	
+	for(i = 0; i < gi.countentries;i++)
+	{
+		char filename[256];
+		zipFileInfo fileInfo;
+		err = ZitCurrentFileInfo(handle, &fileInfo, filename, sizeof(filename), NULL, 0, NULL, 0);
+		lua_pushnumber(L, i + 1);
+		lua_newtable(L);
+		lua_pushstring(L, "name");
+		lua_pushstring(L, filename);
+		lua_settable(L, -3);
+		lua_pushstring(L, "size");
+		lua_pushnumber(L, fileInfo.uncompressedsize);
+		lua_settable(L, -3);
+		lua_pushstring(L, "directory");
+		lua_pushboolean(L, hasEndSlash(filename));
+		lua_settable(L, -3);
+		lua_settable(L, -3);
+		if((i + 1) < gi.countentries)
+		{
+			err = ZipGotoNextFile(handle);
+			if(err != 0)
+				printf("Error with zipfile in ZipGotoNextFile\n");
+		}
+	}
+	ZipClose(handle);
+	return 1;
+}
+
 static int lua_ZipExtract(lua_State *L) {
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
@@ -1170,6 +1220,7 @@ static const luaL_Reg System_functions[] = {
   {"getTitle",                  lua_title},
   {"getTitleID",                lua_titleid},
   {"extractSfo",                lua_extractsfo},
+  {"listZip",                	lua_listZip},
   {"extractZip",                lua_ZipExtract},
   {"extractZipAsync",           lua_ZipExtractAsync},
   {"extractFromZip",            lua_getfilefromzip},

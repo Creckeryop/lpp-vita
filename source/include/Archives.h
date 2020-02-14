@@ -42,7 +42,7 @@
 #- Raphael for vram manager code ---------------------------------------------------------------------------------------#
 #- Dynodzzo for LSD concepts -------------------------------------------------------------------------------------------#
 #- ab_portugal for Image.negative function -----------------------------------------------------------------------------#
-#- JiCé for drawCircle function ----------------------------------------------------------------------------------------#
+#- JiCï¿½ for drawCircle function ----------------------------------------------------------------------------------------#
 #- Rapper_skull & DarkGiovy for testing LuaPlayer Plus and coming up with some neat ideas for it. ----------------------#
 #-----------------------------------------------------------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------#
@@ -65,11 +65,93 @@ extern "C" {
  */
 
 #include "zlib.h"
+#include <stdio.h>
+
+
+typedef struct
+{
+	unsigned long version;
+	unsigned long versionneeded;
+	unsigned long flag;
+	unsigned long compressionmethod;
+	unsigned long dosdate;
+	unsigned long crc;
+	unsigned long compressedsize;
+	unsigned long uncompressedsize;
+	unsigned long filenamesize;
+	unsigned long fileextrasize;
+	unsigned long filecommentsize;
+	unsigned long disknumstart;
+	unsigned long internalfileattr;
+	unsigned long externalfileattr;
+
+} zipFileInfo;
+
+typedef struct
+{
+	unsigned long currentfileoffset;
+
+} zipFileInternalInfo;
+
+typedef struct
+{
+	char *buffer;
+	z_stream stream;
+	unsigned long posinzip;
+	unsigned long streaminitialised;
+	unsigned long localextrafieldoffset;
+	unsigned int  localextrafieldsize;
+	unsigned long localextrafieldpos;
+	unsigned long crc32;
+	unsigned long crc32wait;
+	unsigned long restreadcompressed;
+	unsigned long restreaduncompressed;
+	FILE* file;
+	unsigned long compressionmethod;
+	unsigned long bytebeforezip;
+
+} zipFileInfoInternal;
+
+typedef struct
+{
+	unsigned long countentries;
+	unsigned long commentsize;
+
+} zipGlobalInfo;
+
+typedef struct
+{
+	FILE* file;
+	zipGlobalInfo gi;
+	unsigned long bytebeforezip;
+	unsigned long numfile;
+	unsigned long posincentraldir;
+	unsigned long currentfileok;
+	unsigned long centralpos;
+	unsigned long centraldirsize;
+	unsigned long centraldiroffset;
+	zipFileInfo currentfileinfo;
+	zipFileInternalInfo currentfileinfointernal;
+	zipFileInfoInternal* currentzipfileinfo;
+	int encrypted;
+	unsigned long keys[3];
+	const unsigned long* crc32tab;
+
+} _zip;
+
+
 
 /**
  * A zip
  */
 typedef void Zip;
+
+typedef struct
+{
+	char* filename;
+	unsigned long size;
+	void *next;
+} ZipFileList;
 
 /**
  * A file within a zip
@@ -112,6 +194,12 @@ int ZipClose(Zip *zip);
  */
 ZipFile* ZipFileRead(Zip *zip, const char *filename, const char *password);
 
+int ZitCurrentFileInfo(Zip* file, zipFileInfo *pfileinfo, char *filename, unsigned long filenamebuffersize, void *extrafield, unsigned long extrafieldbuffersize, char *comment, unsigned long commentbuffersize);
+
+int ZitGlobalInfo(Zip* file, zipGlobalInfo *zipinfo);
+
+int ZipGotoNextFile(Zip* file);
+
 /**
  * Extract all files from a zip
  *
@@ -131,6 +219,17 @@ int ZipExtract(Zip *zip, const char *password, const char* path);
  * @param file - A valid (previously read) ::ZipFile
  */
 void ZipFileFree(ZipFile *file);
+
+/**
+ * Get list all files from a zip
+ *
+ * @param zip - A valid (previously opened) ::Zip file
+ * 
+ * @param fileList - Linked list of pathes for files inside zip file
+ * 
+ * @returns 1 on success, 0 on error.
+ */
+int ZipList(Zip *zip, ZipFileList *fileList);
 
 #ifdef __cplusplus
 }

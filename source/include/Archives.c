@@ -35,7 +35,6 @@
 extern "C" {
 #endif
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
@@ -69,77 +68,6 @@ extern "C" {
 #define _ZIP_BUF_READ_COMMENT (0x400)
 
 #define TMPBUF_SIZE 1048576
-
-typedef struct
-{
-	unsigned long version;
-	unsigned long versionneeded;
-	unsigned long flag;
-	unsigned long compressionmethod;
-	unsigned long dosdate;
-	unsigned long crc;
-	unsigned long compressedsize;
-	unsigned long uncompressedsize;
-	unsigned long filenamesize;
-	unsigned long fileextrasize;
-	unsigned long filecommentsize;
-	unsigned long disknumstart;
-	unsigned long internalfileattr;
-	unsigned long externalfileattr;
-
-} zipFileInfo;
-
-typedef struct
-{
-	unsigned long currentfileoffset;
-
-} zipFileInternalInfo;
-
-typedef struct
-{
-	char *buffer;
-	z_stream stream;
-	unsigned long posinzip;
-	unsigned long streaminitialised;
-	unsigned long localextrafieldoffset;
-	unsigned int  localextrafieldsize;
-	unsigned long localextrafieldpos;
-	unsigned long crc32;
-	unsigned long crc32wait;
-	unsigned long restreadcompressed;
-	unsigned long restreaduncompressed;
-	FILE* file;
-	unsigned long compressionmethod;
-	unsigned long bytebeforezip;
-
-} zipFileInfoInternal;
-
-typedef struct
-{
-	unsigned long countentries;
-	unsigned long commentsize;
-
-} zipGlobalInfo;
-
-typedef struct
-{
-	FILE* file;
-	zipGlobalInfo gi;
-	unsigned long bytebeforezip;
-	unsigned long numfile;
-	unsigned long posincentraldir;
-	unsigned long currentfileok;
-	unsigned long centralpos;
-	unsigned long centraldirsize;
-	unsigned long centraldiroffset;
-	zipFileInfo currentfileinfo;
-	zipFileInternalInfo currentfileinfointernal;
-	zipFileInfoInternal* currentzipfileinfo;
-	int encrypted;
-	unsigned long keys[3];
-	const unsigned long* crc32tab;
-
-} _zip;
 
 void *MallocPatch(int size)
 {
@@ -486,7 +414,7 @@ static int ZitZipFileInfoInternal(Zip* file, zipFileInfo *pfileinfo, zipFileInte
 	return err;
 }
 
-static int ZitGlobalInfo(Zip* file, zipGlobalInfo *zipinfo)
+int ZitGlobalInfo(Zip* file, zipGlobalInfo *zipinfo)
 {
 	_zip* s;
 
@@ -555,12 +483,12 @@ static int ZipCloseCurrentFile(Zip* file)
 	return err;
 }
 
-static int ZitCurrentFileInfo(Zip* file, zipFileInfo *pfileinfo, char *filename, unsigned long filenamebuffersize, void *extrafield, unsigned long extrafieldbuffersize, char *comment, unsigned long commentbuffersize)
+int ZitCurrentFileInfo(Zip* file, zipFileInfo *pfileinfo, char *filename, unsigned long filenamebuffersize, void *extrafield, unsigned long extrafieldbuffersize, char *comment, unsigned long commentbuffersize)
 {
 	return ZitZipFileInfoInternal(file, pfileinfo, NULL, filename, filenamebuffersize, extrafield, extrafieldbuffersize, comment, commentbuffersize);
 }
 
-static int ZipGotoNextFile(Zip* file)
+int ZipGotoNextFile(Zip* file)
 {
 	_zip* s;
 	int err;
@@ -1176,6 +1104,40 @@ int ZipExtract(Zip* zip, const char *password, const char* path)
 
 			if(err != _ZIP_OK)
 				printf("Error with zipfile in ZipGotoNextFile\n");
+		}
+	}
+
+	return err;
+}
+
+int ZipList(Zip* zip, ZipFileList *fileList)
+{
+	ZipFileList *cursor;
+	unsigned int i;
+	zipGlobalInfo gi;
+	memset(&gi, 0, sizeof(zipGlobalInfo));
+	int err;
+	int nopath = 0;
+
+	err = ZitGlobalInfo(zip, &gi);
+
+	if(err != _ZIP_OK)
+		printf("Error with zipfile in ZitGlobalInfo\n");
+		
+	cursor = fileList;
+	for(i = 0;i < gi.countentries;i++)
+	{
+		cursor->filename = malloc(256);
+		zipFileInfo fileInfo;
+		err = ZitCurrentFileInfo(zip, &fileInfo, cursor->filename, 256, NULL, 0, NULL, 0);
+		cursor->size = fileInfo.uncompressedsize;
+		if((i + 1) < gi.countentries)
+		{
+			err = ZipGotoNextFile(zip);
+			if(err != _ZIP_OK)
+				printf("Error with zipfile in ZipGotoNextFile\n");
+			cursor->next = malloc(sizeof(ZipFileList));
+			cursor = cursor->next;
 		}
 	}
 
