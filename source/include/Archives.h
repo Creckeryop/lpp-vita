@@ -65,6 +65,81 @@ extern "C" {
  */
 
 #include "zlib.h"
+#include <stdio.h>
+
+
+typedef struct
+{
+	unsigned long version;
+	unsigned long versionneeded;
+	unsigned long flag;
+	unsigned long compressionmethod;
+	unsigned long dosdate;
+	unsigned long crc;
+	unsigned long compressedsize;
+	unsigned long uncompressedsize;
+	unsigned long filenamesize;
+	unsigned long fileextrasize;
+	unsigned long filecommentsize;
+	unsigned long disknumstart;
+	unsigned long internalfileattr;
+	unsigned long externalfileattr;
+
+} zipFileInfo;
+
+typedef struct
+{
+	unsigned long currentfileoffset;
+
+} zipFileInternalInfo;
+
+typedef struct
+{
+	char *buffer;
+	z_stream stream;
+	unsigned long posinzip;
+	unsigned long streaminitialised;
+	unsigned long localextrafieldoffset;
+	unsigned int  localextrafieldsize;
+	unsigned long localextrafieldpos;
+	unsigned long crc32;
+	unsigned long crc32wait;
+	unsigned long restreadcompressed;
+	unsigned long restreaduncompressed;
+	FILE* file;
+	unsigned long compressionmethod;
+	unsigned long bytebeforezip;
+
+} zipFileInfoInternal;
+
+typedef struct
+{
+	unsigned long countentries;
+	unsigned long commentsize;
+
+} zipGlobalInfo;
+
+typedef struct
+{
+	FILE* file;
+	zipGlobalInfo gi;
+	unsigned long bytebeforezip;
+	unsigned long numfile;
+	unsigned long posincentraldir;
+	unsigned long currentfileok;
+	unsigned long centralpos;
+	unsigned long centraldirsize;
+	unsigned long centraldiroffset;
+	zipFileInfo currentfileinfo;
+	zipFileInternalInfo currentfileinfointernal;
+	zipFileInfoInternal* currentzipfileinfo;
+	int encrypted;
+	unsigned long keys[3];
+	const unsigned long* crc32tab;
+
+} _zip;
+
+
 
 /**
  * A zip
@@ -118,6 +193,12 @@ int ZipClose(Zip *zip);
  * @returns A ::ZipFile struct containing the file
  */
 ZipFile* ZipFileRead(Zip *zip, const char *filename, const char *password);
+
+int ZitCurrentFileInfo(Zip* file, zipFileInfo *pfileinfo, char *filename, unsigned long filenamebuffersize, void *extrafield, unsigned long extrafieldbuffersize, char *comment, unsigned long commentbuffersize);
+
+int ZitGlobalInfo(Zip* file, zipGlobalInfo *zipinfo);
+
+int ZipGotoNextFile(Zip* file);
 
 /**
  * Extract all files from a zip

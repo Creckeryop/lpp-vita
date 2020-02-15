@@ -724,31 +724,42 @@ static int lua_listZip(lua_State *L)
 	#ifndef SKIP_ERROR_HANDLING
 	if (handle == NULL) luaL_error(L, "error opening ZIP file.");
 	#endif
-	ZipFileList list;
-	int result = ZipList(handle, &list);
-	ZipClose(handle);
+	unsigned int i;
+	zipGlobalInfo gi;
+	memset(&gi, 0, sizeof(zipGlobalInfo));
+	int err;
 	lua_newtable(L);
-	int i = 1;
-	ZipFileList *cursor = &list;
-	while (cursor) {
-		lua_pushnumber(L, i++);  /* push key for file entry */
+
+	err = ZitGlobalInfo(handle, &gi);
+
+	if(err != 0)
+		printf("Error with zipfile in ZitGlobalInfo\n");
+	
+	for(i = 0; i < gi.countentries;i++)
+	{
+		char filename[256];
+		zipFileInfo fileInfo;
+		err = ZitCurrentFileInfo(handle, &fileInfo, filename, sizeof(filename), NULL, 0, NULL, 0);
+		lua_pushnumber(L, i);
 		lua_newtable(L);
 		lua_pushstring(L, "name");
-		lua_pushstring(L, cursor->filename);
+		lua_pushstring(L, filename);
 		lua_settable(L, -3);
 		lua_pushstring(L, "size");
-		lua_pushnumber(L, cursor->size);
+		lua_pushnumber(L, fileInfo.uncompressedsize);
 		lua_settable(L, -3);
 		lua_pushstring(L, "directory");
-		lua_pushboolean(L, hasEndSlash(cursor->filename));
+		lua_pushboolean(L, hasEndSlash(filename));
 		lua_settable(L, -3);
 		lua_settable(L, -3);
-		free(cursor->filename);
-		ZipFileList * prev = cursor;
-		cursor = (ZipFileList*)cursor->next;
-		if (prev != &list)
-			free(prev);
+		if((i + 1) < gi.countentries)
+		{
+			err = ZipGotoNextFile(handle);
+			if(err != 0)
+				printf("Error with zipfile in ZipGotoNextFile\n");
+		}
 	}
+	ZipClose(handle);
 	return 1;
 }
 
