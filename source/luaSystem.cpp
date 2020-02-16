@@ -724,6 +724,11 @@ static int lua_listZip(lua_State *L)
 	#ifndef SKIP_ERROR_HANDLING
 	if (handle == NULL) luaL_error(L, "error opening ZIP file.");
 	#endif
+	if (handle == NULL)
+	{
+		lua_pushboolean(L, false);
+		return 1;
+	}
 	unsigned int i;
 	zipGlobalInfo gi;
 	memset(&gi, 0, sizeof(zipGlobalInfo));
