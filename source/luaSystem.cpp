@@ -717,13 +717,18 @@ static int lua_listZip(lua_State *L)
 {
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if(argc != 2 && argc != 3) return luaL_error(L, "wrong number of arguments.");
+	if(argc != 1) return luaL_error(L, "wrong number of arguments.");
 	#endif
 	const char* FileToExtract = luaL_checkstring(L, 1);
 	Zip* handle = ZipOpen(FileToExtract);
 	#ifndef SKIP_ERROR_HANDLING
 	if (handle == NULL) luaL_error(L, "error opening ZIP file.");
 	#endif
+	if (handle == NULL)
+	{
+		lua_pushboolean(L, false);
+		return 1;
+	}
 	unsigned int i;
 	zipGlobalInfo gi;
 	memset(&gi, 0, sizeof(zipGlobalInfo));
@@ -740,7 +745,7 @@ static int lua_listZip(lua_State *L)
 		char filename[256];
 		zipFileInfo fileInfo;
 		err = ZitCurrentFileInfo(handle, &fileInfo, filename, sizeof(filename), NULL, 0, NULL, 0);
-		lua_pushnumber(L, i);
+		lua_pushnumber(L, i + 1);
 		lua_newtable(L);
 		lua_pushstring(L, "name");
 		lua_pushstring(L, filename);
