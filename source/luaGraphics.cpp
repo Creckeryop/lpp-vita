@@ -67,6 +67,7 @@ static bool isRescaling = false;
 static rescaler scaler;
 static char asyncPath[512];
 static int asyncParams[4];
+static int asyncDownscaleLevel;
 static volatile uint8_t asyncMode = IMGLOAD_END;
 
 #ifdef PARANOID
@@ -80,23 +81,8 @@ static int imgThread(unsigned int args, void* arg)
 	char* text = asyncPath;
 	switch (asyncMode){
 		case IMGLOAD_SIMPLE:
-			fd = sceIoOpen(text, SCE_O_RDONLY, 0777);
-			uint16_t magic;
-			sceIoRead(fd, &magic, 2);
-			sceIoClose(fd);
-			if (magic == 0x4D42)
-			{
-				result = vita2d_load_BMP_file(text);
-			}
-			else if (magic == 0xD8FF)
-			{
-				result = vita2d_load_JPEG_file(text);
-			}
-			else if (magic == 0x5089)
-			{
-				result = vita2d_load_PNG_file(text);
-			}
-			else 
+			result = load_PIC_file_downscaled(text, asyncDownscaleLevel);
+			if (!result)
 			{
 				async_task_num--;
 				asyncMode = IMGLOAD_END;
@@ -346,9 +332,10 @@ static int lua_term(lua_State *L) {
 static int lua_loadimgasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	if (argc > 0 && argc < 3) return luaL_error(L, "wrong number of arguments");
 	#endif
 	char* text = (char*)(luaL_checkstring(L, 1));
+	asyncDownscaleLevel = argc>=2 ? luaL_checkinteger(L, 2) : 1;
 	sprintf(asyncPath, text);
 	async_task_num++;
 	asyncMode = IMGLOAD_SIMPLE;
@@ -390,18 +377,12 @@ static int lua_loadimgpartasync(lua_State *L){
 static int lua_loadimg(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	if (argc > 0 && argc < 3) return luaL_error(L, "wrong number of arguments");
 	#endif
-	char* text = (char*)(luaL_checkstring(L, 1));
+	char* text = (char*)luaL_checkstring(L, 1);
+	int dslevel = argc>=2 ? luaL_checkinteger(L, 2) : 1;
 	SceUID file = sceIoOpen(text, SCE_O_RDONLY, 0777);
-	uint16_t magic;
-	sceIoRead(file, &magic, 2);
-	sceIoClose(file);
-	vita2d_texture* result;
-	if (magic == 0x4D42) result = vita2d_load_BMP_file(text);
-	else if (magic == 0xD8FF) result = vita2d_load_JPEG_file(text);
-	else if (magic == 0x5089) result = vita2d_load_PNG_file(text);
-	else return luaL_error(L, "Error loading image (invalid magic).");
+	vita2d_texture* result = load_PIC_file_downscaled(text, dslevel);
 	#ifndef SKIP_ERROR_HANDLING
 	if (result == NULL) return luaL_error(L, "Error loading image.");
 	#endif

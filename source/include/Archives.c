@@ -1110,40 +1110,6 @@ int ZipExtract(Zip* zip, const char *password, const char* path)
 	return err;
 }
 
-int ZipList(Zip* zip, ZipFileList *fileList)
-{
-	ZipFileList *cursor;
-	unsigned int i;
-	zipGlobalInfo gi;
-	memset(&gi, 0, sizeof(zipGlobalInfo));
-	int err;
-	int nopath = 0;
-
-	err = ZitGlobalInfo(zip, &gi);
-
-	if(err != _ZIP_OK)
-		printf("Error with zipfile in ZitGlobalInfo\n");
-		
-	cursor = fileList;
-	for(i = 0;i < gi.countentries;i++)
-	{
-		cursor->filename = malloc(256);
-		zipFileInfo fileInfo;
-		err = ZitCurrentFileInfo(zip, &fileInfo, cursor->filename, 256, NULL, 0, NULL, 0);
-		cursor->size = fileInfo.uncompressedsize;
-		if((i + 1) < gi.countentries)
-		{
-			err = ZipGotoNextFile(zip);
-			if(err != _ZIP_OK)
-				printf("Error with zipfile in ZipGotoNextFile\n");
-			cursor->next = malloc(sizeof(ZipFileList));
-			cursor = cursor->next;
-		}
-	}
-
-	return err;
-}
-
 ZipFile* ZipFileRead(Zip* zip, const char *filename, const char *password)
 {
 	char filenameinzip[256];

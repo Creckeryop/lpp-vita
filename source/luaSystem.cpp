@@ -83,7 +83,7 @@ static int zipThread(unsigned int args, void* arg){
 			ZipFile* file = ZipFileRead(asyncHandle, asyncName, (strlen(asyncPass) > 0) ? asyncPass : NULL);
 			if (file == NULL) asyncResult = -1;
 			else{
-				FILE* f = fopen(asyncDest,"w");
+				FILE* f = fopen(asyncDest, "w");
 				fwrite(file->data, 1, file->size, f);
 				fclose(f);
 				ZipFileFree(file);

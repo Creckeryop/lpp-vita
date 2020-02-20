@@ -220,17 +220,6 @@ int ZipExtract(Zip *zip, const char *password, const char* path);
  */
 void ZipFileFree(ZipFile *file);
 
-/**
- * Get list all files from a zip
- *
- * @param zip - A valid (previously opened) ::Zip file
- * 
- * @param fileList - Linked list of pathes for files inside zip file
- * 
- * @returns 1 on success, 0 on error.
- */
-int ZipList(Zip *zip, ZipFileList *fileList);
-
 #ifdef __cplusplus
 }
 #endif
