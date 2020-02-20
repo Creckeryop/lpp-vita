@@ -82,24 +82,18 @@ static int imgThread(unsigned int args, void* arg)
 	switch (asyncMode){
 		case IMGLOAD_SIMPLE:
 			result = load_PIC_file_downscaled(text, asyncDownscaleLevel);
-			if (!result)
-			{
-				async_task_num--;
-				asyncMode = IMGLOAD_END;
-				asyncResult = 1;
-				sceKernelExitDeleteThread(0);
-				return 0;
-			}
 			break;
 		case IMGLOAD_PART:
-			if (!(result = load_PIC_file(text,asyncParams[0],asyncParams[1],asyncParams[2],asyncParams[3]))){
-				async_task_num--;
-				asyncMode = IMGLOAD_END;
-				asyncResult = 1;
-				sceKernelExitDeleteThread(0);
-				return 0;
-			}
+			result = load_PIC_file(text,asyncParams[0],asyncParams[1],asyncParams[2],asyncParams[3]);
 			break;
+	}
+	if (result == NULL)
+	{
+		async_task_num--;
+		asyncMode = IMGLOAD_END;
+		asyncResult = 1;
+		sceKernelExitDeleteThread(0);
+		return 0;
 	}
 	lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
 	ret->magic = 0xABADBEEF;
