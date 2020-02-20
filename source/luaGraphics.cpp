@@ -381,7 +381,6 @@ static int lua_loadimg(lua_State *L){
 	#endif
 	char* text = (char*)luaL_checkstring(L, 1);
 	int dslevel = argc>=2 ? luaL_checkinteger(L, 2) : 1;
-	SceUID file = sceIoOpen(text, SCE_O_RDONLY, 0777);
 	vita2d_texture* result = load_PIC_file_downscaled(text, dslevel);
 	#ifndef SKIP_ERROR_HANDLING
 	if (result == NULL) return luaL_error(L, "Error loading image.");
