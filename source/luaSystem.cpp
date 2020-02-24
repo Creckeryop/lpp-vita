@@ -125,6 +125,8 @@ static int lua_launch2(lua_State *L){
 	sprintf(uri, "psgm:play?titleid=%s", titleid);
 	sceKernelDelayThread(10000);
 	sceAppMgrLaunchAppByUri(0xFFFFF, uri);
+	sceKernelDelayThread(10000);
+	sceAppMgrLaunchAppByUri(0xFFFFF, uri);
 	sceKernelExitProcess(0);
 	return 0;
 }
