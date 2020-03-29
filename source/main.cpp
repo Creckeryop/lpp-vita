@@ -18,6 +18,19 @@ int clr_color;
 bool unsafe_mode = true;
 SceCommonDialogConfigParam cmnDlgCfgParam;
 
+static int lpp_power_sleep(unsigned int args, void* arg)
+{
+	for (;;)
+	{
+		if (asyncResult==0)
+		{
+			sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
+		}
+		sceKernelDelayThread(1000000);
+	}
+	return 0;
+}
+
 int main()
 {
 
@@ -39,7 +52,11 @@ int main()
 	sceAppUtilSystemParamGetInt(SCE_SYSTEM_PARAM_ID_ENTER_BUTTON, (int *)&cmnDlgCfgParam.enterButtonAssign);
 	sceCommonDialogSetConfigParam(&cmnDlgCfgParam);
 	sceShellUtilInitEvents(0);
-
+	SceUID pt = sceKernelCreateThread("Power Thread", &lpp_power_sleep, 0x40, 0x10000, 0, 0, NULL);
+	if (pt >= 0)
+	{
+		sceKernelStartThread(pt, 0, NULL);
+	}
 	// Check what mode lpp-vita is currently running on
 	SceUID fd = sceIoOpen("os0:/psp2bootconfig.skprx", SCE_O_RDONLY, 0777);
 	if (fd < 0)
@@ -146,6 +163,10 @@ int main()
 
 	sceAppUtilShutdown();
 	vita2d_fini();
+	if (pt >= 0)
+	{
+		sceKernelDeleteThread(pt);
+	}
 	sceSysmoduleUnloadModule(SCE_SYSMODULE_NET);
 	sceSysmoduleUnloadModule(SCE_SYSMODULE_HTTP);
 	sceKernelExitProcess(0);
