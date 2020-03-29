@@ -163,6 +163,8 @@ static int downloadThread(unsigned int args, void* arg)
 	curl_easy_setopt(curl_handle, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
 	curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
 	curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, 10L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
 	NetString *buffer;
 	switch (asyncMode)
@@ -205,14 +207,27 @@ static int downloadThread(unsigned int args, void* arg)
 	headerchunk = curl_slist_append(headerchunk, asyncHeader3);
 	headerchunk = curl_slist_append(headerchunk, asyncHeader4);
 	curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerchunk);
-	curl_easy_perform(curl_handle);
+	int res = curl_easy_perform(curl_handle);
 	curl_slist_free_all(headerchunk);
 	if (file > 0)
+	{
 		sceIoClose(file);
+		if (CURLE_OPERATION_TIMEDOUT == res)
+			sceIoRemove(asyncDest);
+	}
 	if (asyncMode == STRING_DOWNLOAD)
 	{
-		asyncStrRes = buffer->ptr;
-		asyncResSize = buffer->length;
+		if (CURLE_OPERATION_TIMEDOUT == res)
+		{
+			delete buffer->ptr;
+			asyncStrRes = NULL;
+			asyncResSize = 0;
+		}
+		else
+		{
+			asyncStrRes = buffer->ptr;
+			asyncResSize = buffer->length;
+		}
 		delete buffer;
 	}
 	asyncMode = DOWNLOAD_END;
