@@ -28,10 +28,11 @@
 #- xerpi for drawing libs and for FTP server code ----------------------------------------------------------------------#
 #-----------------------------------------------------------------------------------------------------------------------*/
 #define NET_INIT_SIZE 1*1024*1024
+#define _GNU_SOURCE
 #include <vitasdk.h>
 #include <curl/curl.h>
+#include <stdio.h>
 #include "include/luaplayer.h"
-
 extern "C"{
 	#include "include/ftp/ftp.h"
 }
@@ -43,6 +44,8 @@ static void* net_memory = NULL;
 static char vita_ip[16];
 static bool isNet = false;
 static CURL *curl_handle = NULL;
+static uint64_t total_bytes = 0xFFFFFFFF;
+static uint64_t downloaded_bytes = 0;
 
 typedef struct
 {
@@ -103,12 +106,14 @@ static struct hostent *gethostbyname(const char *name)
 static size_t write_cb(void *ptr, size_t size, size_t nmemb, void *stream)
 {
 	SceUID *fd = (SceUID*)stream;
+	downloaded_bytes += size * nmemb;
 	return sceIoWrite(*fd , ptr , size * nmemb);
 }
 
 static size_t write_str(void *ptr, size_t size, size_t nmemb, NetString *str)
 {
 	size_t dadd = size * nmemb;
+	downloaded_bytes += dadd;
 	str->concat(ptr, dadd);
     return dadd;
 }
@@ -132,6 +137,17 @@ static uint8_t asyncContentType;
 static int asyncPostsize;
 static const uint8_t JSON = 0;
 static const uint8_t XWWW = 1;
+
+static size_t header_cb(char *buffer, size_t size, size_t nitems, void *userdata)
+{
+	if (total_bytes == 0xFFFFFFFF) {
+		char *ptr = strcasestr(buffer, "Content-Length");
+		if (ptr != NULL) { 
+			sscanf(ptr, "Content-Length: %llu", &total_bytes);
+		}
+	}
+	return nitems * size;
+}
 
 static int downloadThread(unsigned int args, void* arg)
 {
@@ -163,6 +179,7 @@ static int downloadThread(unsigned int args, void* arg)
 	curl_easy_setopt(curl_handle, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
 	curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
 	curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, header_cb);
 	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, 10L);
 	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
@@ -212,12 +229,12 @@ static int downloadThread(unsigned int args, void* arg)
 	if (file > 0)
 	{
 		sceIoClose(file);
-		if (CURLE_OPERATION_TIMEDOUT == res)
+		if (res != CURLE_OK)
 			sceIoRemove(asyncDest);
 	}
 	if (asyncMode == STRING_DOWNLOAD)
 	{
-		if (CURLE_OPERATION_TIMEDOUT == res)
+		if (res != CURLE_OK)
 		{
 			delete buffer->ptr;
 			asyncStrRes = NULL;
@@ -606,6 +623,8 @@ static int lua_download(lua_State *L){
 	curl_easy_setopt(curl_handle, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
 	curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
 	curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, 10L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_cb);	
 	SceUID fh = sceIoOpen(file, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
@@ -677,6 +696,8 @@ static int lua_downloadasync(lua_State *L){
 		asyncResult = -1;
 		return 0;
 	}
+	total_bytes = 0xFFFFFFFF;
+	downloaded_bytes = 0;
 	asyncResult = 0;
 	sceKernelStartThread(thd, 0, NULL);
 	return 0;
@@ -727,6 +748,8 @@ static int lua_string(lua_State *L){
 	curl_easy_setopt(curl_handle, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
 	curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
 	curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, 10L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
 	NetString *buffer = new NetString();
 	curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_str);
@@ -798,9 +821,31 @@ static int lua_stringasync(lua_State *L){
 		asyncResult = -1;
 		return 0;
 	}
+	total_bytes = 0xFFFFFFFF;
+	downloaded_bytes = 0;
 	asyncResult = 0;
 	sceKernelStartThread(thd, 0, NULL);
 	return 0;
+}
+
+static int lua_getbytes1(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	#endif
+	lua_pushnumber(L, downloaded_bytes);
+	return 1;
+}
+
+static int lua_getbytes2(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	#endif
+	lua_pushnumber(L, total_bytes);
+	return 1;
 }
 
 //Register our Network Functions
@@ -817,6 +862,8 @@ static const luaL_Reg Network_functions[] = {
   {"downloadFileAsync",   lua_downloadasync},
   {"requestString",       lua_string},
   {"requestStringAsync",  lua_stringasync},
+  {"getDownloadedBytes",  lua_getbytes1},
+  {"getTotalBytes",		  lua_getbytes2},
   {0, 0}
 };
 
