@@ -132,6 +132,8 @@ static char asyncHeader1[128];
 static char asyncHeader2[128];
 static char asyncHeader3[128];
 static char asyncHeader4[128];
+static char asyncProxy[128];
+static char asyncProxyAuth[128];
 static uint8_t asyncMethod;
 static uint8_t asyncContentType;
 static int asyncPostsize;
@@ -155,6 +157,10 @@ static int downloadThread(unsigned int args, void* arg)
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, asyncUrl);
 	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, asyncCookie);
+	if (strlen(asyncProxy) > 2)
+		curl_easy_setopt(curl_handle, CURLOPT_PROXY, asyncProxy);
+	if (strlen(asyncProxyAuth) > 2)
+		curl_easy_setopt(curl_handle, CURLOPT_PROXYUSERPWD, asyncProxyAuth);
 	switch (asyncMethod)
 	{
 	case SCE_HTTP_METHOD_GET:
@@ -581,7 +587,7 @@ static int lua_connect(lua_State *L)
 static int lua_download(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 2 || argc > 11) return luaL_error(L, "wrong number of arguments");
+	if (argc < 2 || argc > 12) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -597,9 +603,15 @@ static int lua_download(lua_State *L){
 	const char* header2 = (argc >= 9) ? luaL_checkstring(L,9) : NULL;
 	const char* header3 = (argc >= 10) ? luaL_checkstring(L,10) : NULL;
 	const char* header4 = (argc >= 11) ? luaL_checkstring(L,11) : NULL;
+	const char* proxy = (argc >= 12) ? luaL_checkstring(L,12) : NULL;
+	const char* proxyAuth = (argc >= 13) ? luaL_checkstring(L,13) : NULL;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie);
+	if (proxy != NULL && strlen(proxy) > 2)
+		curl_easy_setopt(curl_handle, CURLOPT_PROXY, proxy);
+	if (proxyAuth != NULL && strlen(proxyAuth) > 2)
+		curl_easy_setopt(curl_handle, CURLOPT_PROXYUSERPWD, proxyAuth);
 	switch (method){
 	case SCE_HTTP_METHOD_GET:
 		curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1L);
@@ -662,7 +674,7 @@ static int lua_download(lua_State *L){
 static int lua_downloadasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 2 || argc > 11) return luaL_error(L, "wrong number of arguments");
+	if (argc < 2 || argc > 13) return luaL_error(L, "wrong number of arguments");
 	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -678,6 +690,8 @@ static int lua_downloadasync(lua_State *L){
 	const char* header2 = (argc >= 9) ? luaL_checkstring(L,9) : "";
 	const char* header3 = (argc >= 10) ? luaL_checkstring(L,10) : "";
 	const char* header4 = (argc >= 11) ? luaL_checkstring(L,11) : "";
+	const char* proxy = (argc >= 12) ? luaL_checkstring(L,12) : "";
+	const char* proxyAuth = (argc >= 13) ? luaL_checkstring(L,13) : "";
 	sprintf(asyncCookie, cookie);
 	sprintf(asyncUrl, url);
 	sprintf(asyncDest, file);
@@ -686,6 +700,8 @@ static int lua_downloadasync(lua_State *L){
 	sprintf(asyncHeader2, header2);
 	sprintf(asyncHeader3, header3);
 	sprintf(asyncHeader4, header4);
+	sprintf(asyncProxy, proxy);
+	sprintf(asyncProxyAuth, proxyAuth);
 	if (postdata != NULL) sprintf(asyncPostdata, postdata);
 	else asyncPostdata[0] = 0;
 	async_task_num++;
@@ -706,7 +722,7 @@ static int lua_downloadasync(lua_State *L){
 static int lua_string(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 10) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 12) return luaL_error(L, "wrong number of arguments");
 	if (asyncMode != DOWNLOAD_END) return luaL_error(L, "cannot download file when async download is active");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -721,9 +737,15 @@ static int lua_string(lua_State *L){
 	const char* header2 = (argc >= 8) ? luaL_checkstring(L,8) : NULL;
 	const char* header3 = (argc >= 9) ? luaL_checkstring(L,9) : NULL;
 	const char* header4 = (argc >= 10) ? luaL_checkstring(L,10) : NULL;
+	const char* proxy = (argc >= 11) ? luaL_checkstring(L,11) : NULL;
+	const char* proxyAuth = (argc >= 12) ? luaL_checkstring(L,12) : NULL;
 	curl_easy_reset(curl_handle);
 	curl_easy_setopt(curl_handle, CURLOPT_URL, url);
 	curl_easy_setopt(curl_handle, CURLOPT_COOKIE, cookie);
+	if (proxy != NULL && strlen(proxy) > 2)
+		curl_easy_setopt(curl_handle, CURLOPT_PROXY, proxy);
+	if (proxyAuth != NULL && strlen(proxyAuth) > 2)
+		curl_easy_setopt(curl_handle, CURLOPT_PROXYUSERPWD, proxyAuth);
 	switch (method)
 	{
 	case SCE_HTTP_METHOD_GET:
@@ -789,7 +811,7 @@ static int lua_string(lua_State *L){
 static int lua_stringasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc < 1 || argc > 10) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc > 13) return luaL_error(L, "wrong number of arguments");
 	if (async_task_num == ASYNC_TASKS_MAX) return luaL_error(L, "cannot start more async tasks.");
 	if (!isNet) return luaL_error(L, "Network is not inited");
 	#endif
@@ -804,6 +826,8 @@ static int lua_stringasync(lua_State *L){
 	const char* header2 = (argc >= 8) ? luaL_checkstring(L,8) : "";
 	const char* header3 = (argc >= 9) ? luaL_checkstring(L,9) : "";
 	const char* header4 = (argc >= 10) ? luaL_checkstring(L,10) : "";
+	const char* proxy = (argc >= 12) ? luaL_checkstring(L,12) : "";
+	const char* proxyAuth = (argc >= 13) ? luaL_checkstring(L,13) : "";
 	sprintf(asyncCookie, cookie);
 	sprintf(asyncUrl, url);
 	sprintf(asyncUseragent, useragent);
@@ -811,6 +835,8 @@ static int lua_stringasync(lua_State *L){
 	sprintf(asyncHeader2, header2);
 	sprintf(asyncHeader3, header3);
 	sprintf(asyncHeader4, header4);
+	sprintf(asyncProxy, proxy);
+	sprintf(asyncProxyAuth, proxyAuth);
 	if (postdata != NULL) sprintf(asyncPostdata, postdata);
 	else asyncPostdata[0] = 0;
 	async_task_num++;
