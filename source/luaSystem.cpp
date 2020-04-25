@@ -1177,6 +1177,19 @@ static int lua_checkApp(lua_State *L){
 	lua_pushboolean(L, ret ? 1 : 0);
 	return 1;
 }
+static int lua_getVersion(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	
+	SceKernelFwInfo data;
+	data.size = sizeof(SceKernelFwInfo);
+	
+	sceKernelGetSystemSwVersion(&data);
+	lua_pushstring(L, data.versionString);
+	return 1;
+}
 
 //Register our System Functions
 static const luaL_Reg System_functions[] = {
@@ -1249,6 +1262,7 @@ static const luaL_Reg System_functions[] = {
   {"installApp",				lua_install},
   {"removeApp",					lua_removeApp},
   {"checkApp",					lua_checkApp},
+  {"getVersion",				lua_getVersion},
   {0, 0}
 };
 
