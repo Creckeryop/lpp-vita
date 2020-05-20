@@ -137,6 +137,7 @@ static char asyncProxyAuth[128];
 static uint8_t asyncMethod;
 static uint8_t asyncContentType;
 static int asyncPostsize;
+static long asyncConTime = 10L;
 static const uint8_t JSON = 0;
 static const uint8_t XWWW = 1;
 
@@ -186,7 +187,7 @@ static int downloadThread(unsigned int args, void* arg)
 	curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
 	curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, header_cb);
-	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, 10L);
+	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, asyncConTime);
 	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
 	NetString *buffer;
@@ -874,6 +875,25 @@ static int lua_getbytes2(lua_State *L)
 	return 1;
 }
 
+static int lua_setcontime(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	asyncConTime = luaL_checkint(L,1);
+	return 0;
+}
+static int lua_getcontime(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	#endif
+	lua_pushnumber(L, asyncConTime);
+	return 1;
+}
+
 //Register our Network Functions
 static const luaL_Reg Network_functions[] = {
   {"init",                lua_init},
@@ -890,6 +910,8 @@ static const luaL_Reg Network_functions[] = {
   {"requestStringAsync",  lua_stringasync},
   {"getDownloadedBytes",  lua_getbytes1},
   {"getTotalBytes",		  lua_getbytes2},
+  {"setConnectionTime",   lua_setcontime},
+  {"getConnectionTime",   lua_getcontime},
   {0, 0}
 };
 
