@@ -140,6 +140,8 @@ static int asyncPostsize;
 static long asyncConTime = 10L;
 static const uint8_t JSON = 0;
 static const uint8_t XWWW = 1;
+static bool stopAsyncDownload = false;
+
 
 static size_t header_cb(char *buffer, size_t size, size_t nitems, void *userdata)
 {
@@ -150,6 +152,11 @@ static size_t header_cb(char *buffer, size_t size, size_t nitems, void *userdata
 		}
 	}
 	return nitems * size;
+}
+
+int progress_callback(void *clientp,   double dltotal,   double dlnow,   double ultotal,   double ulnow)
+{
+	return stopAsyncDownload ? CURLE_ABORTED_BY_CALLBACK : CURLE_OK;
 }
 
 static int downloadThread(unsigned int args, void* arg)
@@ -189,7 +196,9 @@ static int downloadThread(unsigned int args, void* arg)
 	curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, header_cb);
 	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, asyncConTime);
 	curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, 1L);
-	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
+	curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 0L);
+	curl_easy_setopt(curl_handle, CURLOPT_PROGRESSFUNCTION, progress_callback);
+
 	NetString *buffer;
 	switch (asyncMode)
 	{
@@ -716,6 +725,7 @@ static int lua_downloadasync(lua_State *L){
 	total_bytes = 0xFFFFFFFF;
 	downloaded_bytes = 0;
 	asyncResult = 0;
+	stopAsyncDownload = false;
 	sceKernelStartThread(thd, 0, NULL);
 	return 0;
 }
@@ -851,6 +861,7 @@ static int lua_stringasync(lua_State *L){
 	total_bytes = 0xFFFFFFFF;
 	downloaded_bytes = 0;
 	asyncResult = 0;
+	stopAsyncDownload = false;
 	sceKernelStartThread(thd, 0, NULL);
 	return 0;
 }
@@ -894,6 +905,16 @@ static int lua_getcontime(lua_State *L)
 	return 1;
 }
 
+static int lua_stopdownload(lua_State *L)
+{
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	#endif
+	stopAsyncDownload = true;
+	return 0;
+}
+
 //Register our Network Functions
 static const luaL_Reg Network_functions[] = {
   {"init",                lua_init},
@@ -912,6 +933,7 @@ static const luaL_Reg Network_functions[] = {
   {"getTotalBytes",		  lua_getbytes2},
   {"setConnectionTime",   lua_setcontime},
   {"getConnectionTime",   lua_getcontime},
+  {"stopCurrentDownload", lua_stopdownload},
   {0, 0}
 };
 
