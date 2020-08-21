@@ -13,6 +13,8 @@ build/
 *.elf
 *.velf
 
+!source/head.bin
+
 # Folder config file
 Desktop.ini
 
