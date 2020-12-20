@@ -763,6 +763,20 @@ static int lua_gpixel(lua_State *L) {
 	return 1;
 }
 
+static int lua_gpumem(lua_State *L) {
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	#endif
+
+    SceKernelFreeMemorySizeInfo info;
+    info.size = sizeof(SceKernelFreeMemorySizeInfo);
+    sceKernelGetFreeMemorySize(&info);
+	lua_pushinteger(L,info.size_cdram);
+	return 1;
+}
+
+
 //Register our Graphics Functions
 static const luaL_Reg Graphics_functions[] = {
   {"initBlend",           lua_init},
@@ -792,6 +806,7 @@ static const luaL_Reg Graphics_functions[] = {
   {"freeImage",           lua_free},
   {"initRescaler",        lua_rescaleron},
   {"termRescaler",        lua_rescaleroff},
+  {"getFreeMemory",       lua_gpumem},
   {0, 0}
 };
 
