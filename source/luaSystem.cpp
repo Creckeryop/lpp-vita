@@ -1264,6 +1264,19 @@ static int lua_getVersion(lua_State *L){
 	return 1;
 }
 
+static int lua_rammem(lua_State *L) {
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 0) return luaL_error(L, "wrong number of arguments");
+	#endif
+
+    SceKernelFreeMemorySizeInfo info;
+    info.size = sizeof(SceKernelFreeMemorySizeInfo);
+    sceKernelGetFreeMemorySize(&info);
+	lua_pushinteger(L,info.size_user);
+	return 1;
+}
+
 //Register our System Functions
 static const luaL_Reg System_functions[] = {
   {"statFile",                  lua_statfile},
@@ -1338,6 +1351,7 @@ static const luaL_Reg System_functions[] = {
   {"removeApp",					lua_removeApp},
   {"checkApp",					lua_checkApp},
   {"getVersion",				lua_getVersion},
+  {"getFreeRamMemory",			lua_rammem},
   {0, 0}
 };
 
