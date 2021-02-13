@@ -44,6 +44,7 @@ extern "C"
 #define IMGLOAD_SIMPLE 0
 #define IMGLOAD_PART 1
 #define IMGLOAD_END  2
+#define IMGLOAD_GIF  3
 
 vita2d_pgf* debug_font;
 struct ttf{
@@ -76,7 +77,8 @@ static bool draw_state = false;
 
 static int imgThread(unsigned int args, void* arg)
 {
-	vita2d_texture* result;
+	vita2d_texture* result = NULL;
+	gif_texture* result2 = NULL;
 	SceUID fd;
 	char* text = asyncPath;
 	switch (asyncMode){
@@ -86,22 +88,40 @@ static int imgThread(unsigned int args, void* arg)
 		case IMGLOAD_PART:
 			result = load_PIC_file(text,asyncParams[0],asyncParams[1],asyncParams[2],asyncParams[3]);
 			break;
+		case IMGLOAD_GIF:
+			result2 = load_GIF_file(text);
+			break;
 	}
-	if (result == NULL)
-	{
-		async_task_num--;
-		asyncMode = IMGLOAD_END;
-		asyncResult = 1;
-		sceKernelExitDeleteThread(0);
-		return 0;
+	if (asyncMode == IMGLOAD_SIMPLE || asyncMode == IMGLOAD_PART) {
+		if (result == NULL)
+		{
+			async_task_num--;
+			asyncMode = IMGLOAD_END;
+			asyncResult = 1;
+			sceKernelExitDeleteThread(0);
+			return 0;
+		}
+		lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
+		ret->magic = 0xABADBEEF;
+		ret->text = result;
+		char* buffer = (char*)malloc(21 * sizeof(char));
+		sprintf(buffer, "%i", ret);
+		asyncStrRes = (unsigned char*)buffer;
+		asyncResSize = strlen(buffer);
+	} else if (asyncMode == IMGLOAD_GIF) {
+		if (result2 == NULL)
+		{
+			async_task_num--;
+			asyncMode = IMGLOAD_END;
+			asyncResult = 1;
+			sceKernelExitDeleteThread(0);
+			return 0;
+		}
+		char* buffer = (char*)malloc(21 * sizeof(char));
+		sprintf(buffer, "%i", result2);
+		asyncStrRes = (unsigned char*)buffer;
+		asyncResSize = strlen(buffer);
 	}
-	lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
-	ret->magic = 0xABADBEEF;
-	ret->text = result;
-	char* buffer = (char*)malloc(21 * sizeof(char));
-	sprintf(buffer, "%i", ret);
-	asyncStrRes = (unsigned char*)buffer;
-	asyncResSize = strlen(buffer);
 	async_task_num--;
 	asyncMode = IMGLOAD_END;
 	asyncResult = 1;
@@ -776,6 +796,56 @@ static int lua_gpumem(lua_State *L) {
 	return 1;
 }
 
+static int lua_loadgifasync(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc!=1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	char* text = (char*)(luaL_checkstring(L, 1));
+	asyncDownscaleLevel = 1;
+	sprintf(asyncPath, text);
+	async_task_num++;
+	asyncMode = IMGLOAD_GIF;
+	SceUID thd = sceKernelCreateThread("Image loader Thread", &imgThread, 0x10000100, 0x100000, 0, 0, NULL);
+	if (thd < 0)
+	{
+		asyncResult = -1;
+		return 0;
+	}
+	asyncResult = 0;
+	sceKernelStartThread(thd, 0, NULL);
+	return 0;
+}
+
+static int lua_returngif(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc!=1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	gif_texture* text = (gif_texture*)(luaL_checkinteger(L, 1));
+	lua_newtable(L);
+	for(int i = 0; i<text->frames;++i)
+	{
+		lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
+		ret->magic = 0xABADBEEF;
+		ret->text = text->texture[i];
+		char* buffer = (char*)malloc(21 * sizeof(char));
+		sprintf(buffer, "%i", ret);
+		lua_pushnumber(L, i + 1);
+		lua_newtable(L);
+		lua_pushstring(L, "image");
+		lua_pushlstring(L, (const char*)buffer, strlen(buffer));
+		lua_settable(L, -3);
+		lua_pushstring(L, "delay");
+		lua_pushinteger(L, text->delay[i]);
+		lua_settable(L, -3);
+		lua_settable(L, -3);
+	}
+	lua_pushstring(L, "frames");
+	lua_pushinteger(L, text->frames);
+	lua_settable(L, -3);
+	return 1;
+}
 
 //Register our Graphics Functions
 static const luaL_Reg Graphics_functions[] = {
@@ -793,6 +863,8 @@ static const luaL_Reg Graphics_functions[] = {
   {"loadImage",           lua_loadimg},
   {"loadPartImage",		  lua_loadimgpart},
   {"loadImageAsync",      lua_loadimgasync},
+  {"loadGifAsync",  	  lua_loadgifasync},
+  {"returnGif",  	  	  lua_returngif},
   {"loadPartImageAsync",  lua_loadimgpartasync},
   {"drawImage",           lua_drawimg},
   {"drawRotateImage",     lua_drawimg_rotate},
