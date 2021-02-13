@@ -1277,6 +1277,30 @@ static int lua_rammem(lua_State *L) {
 	return 1;
 }
 
+static int lua_getpicformat(lua_State *L){
+	int argc = lua_gettop(L);
+	#ifndef SKIP_ERROR_HANDLING
+	if (argc != 1) return luaL_error(L, "wrong number of arguments");
+	#endif
+	const char *filename = luaL_checkstring(L, 1);
+	pic_format format = get_PIC_format(filename);
+	if (format == PIC_FORMAT_BMP) {
+		lua_pushstring(L, "bmp");
+		return 1;
+	} else if (format == PIC_FORMAT_PNG) {
+		lua_pushstring(L, "png");
+		return 1;
+	} else if (format == PIC_FORMAT_JPEG) {
+		lua_pushstring(L, "jpeg");
+		return 1;
+	} else if (format == PIC_FORMAT_GIF) {
+		lua_pushstring(L, "gif");
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 //Register our System Functions
 static const luaL_Reg System_functions[] = {
   {"statFile",                  lua_statfile},
@@ -1352,6 +1376,7 @@ static const luaL_Reg System_functions[] = {
   {"checkApp",					lua_checkApp},
   {"getVersion",				lua_getVersion},
   {"getFreeRamMemory",			lua_rammem},
+  {"getImageFormat",      		lua_getpicformat},
   {0, 0}
 };
 
