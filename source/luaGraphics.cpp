@@ -104,7 +104,8 @@ static int imgThread(unsigned int args, void* arg)
 		lpp_texture* ret = (lpp_texture*)malloc(sizeof(lpp_texture));
 		ret->magic = 0xABADBEEF;
 		ret->text = result;
-		char* buffer = (char*)malloc(21 * sizeof(char));
+		char* buffer = (char*)malloc(16);
+		memset(buffer, 0, 16);
 		sprintf(buffer, "%i", ret);
 		asyncStrRes = (unsigned char*)buffer;
 		asyncResSize = strlen(buffer);
@@ -117,7 +118,8 @@ static int imgThread(unsigned int args, void* arg)
 			sceKernelExitDeleteThread(0);
 			return 0;
 		}
-		char* buffer = (char*)malloc(21 * sizeof(char));
+		char* buffer = (char*)malloc(16);
+		memset(buffer, 0, 16);
 		sprintf(buffer, "%i", result2);
 		asyncStrRes = (unsigned char*)buffer;
 		asyncResSize = strlen(buffer);
@@ -346,7 +348,7 @@ static int lua_term(lua_State *L) {
 static int lua_loadimgasync(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc > 0 && argc < 3) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc >= 3) return luaL_error(L, "wrong number of arguments");
 	#endif
 	char* text = (char*)(luaL_checkstring(L, 1));
 	asyncDownscaleLevel = argc>=2 ? luaL_checkinteger(L, 2) : 1;
@@ -391,7 +393,7 @@ static int lua_loadimgpartasync(lua_State *L){
 static int lua_loadimg(lua_State *L){
 	int argc = lua_gettop(L);
 	#ifndef SKIP_ERROR_HANDLING
-	if (argc > 0 && argc < 3) return luaL_error(L, "wrong number of arguments");
+	if (argc < 1 || argc >= 3) return luaL_error(L, "wrong number of arguments");
 	#endif
 	char* text = (char*)luaL_checkstring(L, 1);
 	int dslevel = argc>=2 ? luaL_checkinteger(L, 2) : 1;
