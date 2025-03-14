@@ -190,7 +190,7 @@ static int downloadThread(unsigned int args, void* arg)
 	if (asyncMode == STRING_DOWNLOAD)
 	{
 		asyncStrRes = buffer->ptr;
-		asyncResSize = buffer->length;
+		asyncResSize = buffer->length - 1;
 		delete buffer;
 	}
 	asyncMode = DOWNLOAD_END;
